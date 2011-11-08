@@ -1,0 +1,21 @@
+-*- text -*-
+
+Version 0.1.2 (2011-11-08)
+--------------------------
+
+* Initial CRAN release.  
+
+* More features in print output for flexsurvreg and flexsurvspline
+  models.
+
+
+Version 0.1.1 (2011-04-19)
+--------------------------
+
+* Fix of drop=FALSE bug in flexsurvspline.inits which caused
+  flexsurvspline to fail with single covariates.
+
+
+Version 0.1 (2011-03-14)
+------------------------
+Initial release

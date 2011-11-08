@@ -1,0 +1,45 @@
+export(
+dgenf,
+dgenf.orig,
+dgengamma,
+dgengamma.orig,
+dgompertz,
+flexsurvreg,
+flexsurvspline,
+hgenf,
+Hgenf,
+hgenf.orig,
+Hgenf.orig,
+hgengamma,
+Hgengamma,
+hgengamma.orig,
+Hgengamma.orig,
+hgompertz,
+Hgompertz,
+lines.flexsurvreg,
+pgenf,
+pgenf.orig,
+pgengamma,
+pgengamma.orig,
+pgompertz,
+plot.flexsurvreg,
+qgeneric,
+qgenf,
+qgenf.orig,
+qgengamma,
+qgengamma.orig,
+qgompertz,
+rgenf,
+rgenf.orig,
+rgengamma,
+rgengamma.orig,
+rgompertz
+)
+
+importFrom(graphics, plot)
+importFrom(survival, Surv)
+importFrom(survival, survfit)
+
+S3method(print, flexsurvreg)
+S3method(plot, flexsurvreg)
+S3method(lines, flexsurvreg)
