@@ -29,11 +29,11 @@ flexsurv: Flexible parametric models for time-to-event data
   linear term for covariates.  Alternative proportional odds or probit
   parameterisations are available.
 
-  Output from the models is presented as plots of the survivor, cumulative
+  Output from the models can be presented as plots of the survivor, cumulative
   hazard and hazard functions (\code{\link{plot.flexsurvreg}}). These are
   compared against nonparametric estimates to assess goodness-of-fit.
 
-  Utility functions for the generalized gamma and F distributions are
+  Distribution (``dpqr'') functions for the generalized gamma and F distributions are
   given in \code{\link{GenGamma}}, \code{\link{GenF}} (preferred
   parameterisations) and \code{\link{GenGamma.orig}},
   \code{\link{GenF.orig}} (original parameterisations).
@@ -46,7 +46,7 @@ flexsurv: Flexible parametric models for time-to-event data
   \code{\link{flexsurv}} was written to encourage the use of flexible
   distributions to account for model uncertainty in survival analysis,
   initially the three-parameter generalized gamma, four-parameter
-  generalized F distributions and the Royston-Parmar spline
+  generalized F and the Royston-Parmar spline
   model. However it was straightforward to modularise the design of the
   code to accept any generic parametric distribution.
   

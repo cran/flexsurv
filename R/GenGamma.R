@@ -68,7 +68,7 @@ rgengamma <- function(n, mu=0, sigma=1, Q) {
 check.gengamma <- function(mu, sigma, Q){
     ret <- TRUE
     if (missing(Q)) stop("shape parameter \"Q\" not given")
-    if (sigma <= 0) {warning("Non-positive scale parameter \"sigma\""); ret <- FALSE}
+    if (any(sigma <= 0)) {warning("Non-positive scale parameter \"sigma\""); ret <- FALSE}
     ret
 }
 
@@ -125,8 +125,8 @@ check.gengamma.orig <- function(shape, scale, k){
     ret <- TRUE
     if (missing(shape)) stop("shape parameter \"shape\" not given")
     if (missing(k)) stop("shape parameter \"k\" not given")
-    if (shape <= 0) {warning("Non-positive shape parameter \"shape\""); ret <- FALSE}
-    if (scale <= 0) {warning("Non-positive scale parameter"); ret <- FALSE}
-    if (k <= 0) {warning("Non-positive shape parameter \"k\""); ret <- FALSE}
+    if (any(shape <= 0)) {warning("Non-positive shape parameter \"shape\""); ret <- FALSE}
+    if (any(scale <= 0)) {warning("Non-positive scale parameter"); ret <- FALSE}
+    if (any(k <= 0)) {warning("Non-positive shape parameter \"k\""); ret <- FALSE}
     ret
 }

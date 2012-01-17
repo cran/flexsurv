@@ -4,7 +4,9 @@
 \concept{Survival}
 \description{
   Add fitted survival curves from a \code{\link{flexsurvreg}} model fit
-  to an existing plot. Equivalent to \code{\link{plot.flexsurvreg}(...,add=TRUE)}.
+  to an existing plot.
+
+  Equivalent to \code{\link{plot.flexsurvreg}(...,add=TRUE)}.
 }
 \usage{
 \method{lines}{flexsurvreg}(x, X=NULL, 

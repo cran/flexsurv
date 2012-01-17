@@ -68,6 +68,6 @@ Hgompertz <- function(x, shape, rate=1){
 check.gompertz <- function(shape, rate=1){
     ret <- TRUE
     if (missing(shape)) stop("shape parameter not given")
-    if (rate<=0) {warning("Non-positive rate parameter"); ret <- FALSE}
+    if (any(rate<=0)) {warning("Non-positive rate parameter"); ret <- FALSE}
     ret
 }

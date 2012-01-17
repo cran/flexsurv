@@ -1,5 +1,17 @@
 -*- text -*-
 
+Version 0.1.3 (2012-01-17)
+--------------------------
+
+* No longer complains about invalid initial values when there are zero
+  survival times.
+
+* Don't transform parameter estimates in output when fixedpars=TRUE. 
+
+* Checking functions for distribution utilities don't complain about
+  vectorised parameter values.
+
+
 Version 0.1.2 (2011-11-08)
 --------------------------
 

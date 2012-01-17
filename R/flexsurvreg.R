@@ -5,21 +5,30 @@ flexsurv.dists <- list(
                        location="mu",
                        transforms=c(identity, log, identity, log),
                        inv.transforms=c(identity, exp, identity, exp),
-                       inits=function(t){c(mean(log(t)), sd(log(t)), 0, 1)}
+                       inits=function(t){
+                           lt <- log(t[t>0])
+                           c(mean(lt), sd(lt), 0, 1)
+                       }
                        ),
                        genf.orig = list(                                                
                        pars=c("mu","sigma","s1","s2"),
                        location="mu",
                        transforms=c(identity, log, log, log),
                        inv.transforms=c(identity, exp, exp, exp),
-                       inits=function(t){c(mean(log(t)), sd(log(t)), 1, 1)}
+                       inits=function(t){
+                           lt <- log(t[t>0])
+                           c(mean(lt), sd(lt), 1, 1)
+                       }
                        ),
                        gengamma = list(
                        pars=c("mu","sigma","Q"),
                        location="mu",
                        transforms=c(identity, log, identity),
                        inv.transforms=c(identity, exp, identity),
-                       inits=function(t){c(mean(log(t)), sd(log(t)), 0)}
+                       inits=function(t){
+                           lt <- log(t[t>0])
+                           c(mean(lt), sd(lt), 0)
+                       }
                        ),
                        gengamma.orig = list(
                        pars=c("shape","scale","k"),
@@ -41,7 +50,8 @@ flexsurv.dists <- list(
                        transforms=c(log, log),
                        inv.transforms=c(exp, exp),
                        inits = function(t){
-                           c(1, exp(mean(log(t)) + 0.572))
+                           lt <- log(t[t>0])
+                           c(1, exp(mean(lt) + 0.572))
                        }
                        ),
                        lnorm = list(
@@ -49,7 +59,10 @@ flexsurv.dists <- list(
                        location="meanlog",
                        transforms=c(identity, log),
                        inv.transforms=c(identity, exp),
-                       inits=function(t){c(mean(log(t)), sd(log(t)))}
+                       inits=function(t){
+                           lt <- log(t[t>0])
+                           c(mean(lt), sd(lt))
+                       }
                        ),
                        gamma = list(
                        pars=c("shape","rate"),
@@ -165,6 +178,8 @@ flexsurvreg <- function(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
     if ((is.logical(fixedpars) && fixedpars==TRUE) ||
         (is.numeric(fixedpars) && all(fixedpars == 1:npars))) {
         minusloglik <- minusloglik.flexsurv(inits, t=Y[,"time"], dead=Y[,"status"], X=X, dlist=dlist, inits=inits)
+        for (i in 1:nbpars)
+            inits[i] <- dlist$transforms[[i]](inits[i])
         ret <- list(call=call, dlist=dlist, res=inits,
                     loglik=-minusloglik, AIC=2*minusloglik + 2*npars)
     }

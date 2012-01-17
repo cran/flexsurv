@@ -96,8 +96,8 @@ check.genf <- function(mu, sigma, Q, P){
     ret <- TRUE
     if (missing(Q)) stop("shape parameter \"Q\" not given")
     if (missing(P)) stop("shape parameter \"P\" not given")
-    if (sigma <= 0) {warning("Non-positive scale parameter \"sigma\""); ret <- FALSE}
-    if (P < 0) {warning("Negative shape parameter \"P\""); ret <- FALSE}
+    if (any(sigma <= 0)) {warning("Non-positive scale parameter \"sigma\""); ret <- FALSE}
+    if (any(P < 0)) {warning("Negative shape parameter \"P\""); ret <- FALSE}
     ret
 }
 
@@ -155,8 +155,8 @@ check.genf.orig <- function(mu, sigma, s1, s2){
     ret <- TRUE
     if (missing(s1)) stop("shape parameter \"s1\" not given")
     if (missing(s2)) stop("shape parameter \"s2\" not given")
-    if (sigma <= 0) {warning("Non-positive scale parameter \"sigma\""); ret <- FALSE}
-    if (s1 <= 0) {warning("Non-positive shape parameter \"s1\""); ret <- FALSE}
-    if (s2 <= 0) {warning("Non-positive shape parameter \"s2\""); ret <- FALSE}
+    if (any(sigma <= 0)) {warning("Non-positive scale parameter \"sigma\""); ret <- FALSE}
+    if (any(s1 <= 0)) {warning("Non-positive shape parameter \"s1\""); ret <- FALSE}
+    if (any(s2 <= 0)) {warning("Non-positive shape parameter \"s2\""); ret <- FALSE}
     ret
 }
