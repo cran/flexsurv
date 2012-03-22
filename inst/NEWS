@@ -1,5 +1,20 @@
 -*- text -*-
 
+Version 0.1.4 (2012-03-22)
+--------------------------
+
+* maxt argument in plot.flexsurvreg
+
+* Plots no longer complain if data named "dat"
+
+* Corrected wrong bug fix from Version 0.1.3 for transforming
+  parameter estimates in output when fixedpars=TRUE.
+
+* AIC penalty corrected for models with some fixed parameters.
+
+* qgengamma corrected for parameter Q<0.  Thanks to Benn Ackley.
+
+
 Version 0.1.3 (2012-01-17)
 --------------------------
 

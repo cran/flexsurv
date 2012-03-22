@@ -54,6 +54,8 @@ test(qgenf(p=0, mu=0, sigma=1, Q=0, P=1), 0)
 test(qgenf(p=0.25, mu=0, sigma=1, Q=0, P=0),  qgengamma(p=0.25, mu=0, sigma=1, Q=0))
 test(qgenf(pgenf(q=c(-2,-1,0,1,2,3,4), mu=0, sigma=1, Q=0, P=1), mu=0, sigma=1, Q=0, P=1),
      c(0,0,0,1,2,3,4))
+test(qgenf(pgenf(q=c(-2,-1,0,1,2,3,4), mu=0, sigma=1, Q=-1, P=1), mu=0, sigma=1, Q=-1, P=1),
+     c(0,0,0,1,2,3,4))
 test(qgengamma(pgenf(q=c(-2,-1,0,1,2,3,4), mu=0, sigma=1, Q=0, P=0), mu=0, sigma=1, Q=0),
      c(0,0,0,1,2,3,4))
 x <- c(0.1,0.4,0.6)
@@ -105,6 +107,8 @@ test(qgengamma(p=0, mu=0, sigma=1, Q=1), 0)
 test(qgengamma(p=0.25, mu=0, sigma=1, Q=0), qlnorm(p=0.25, meanlog=0, sdlog=1))
 test(qgengamma(p=0.25, mu=0.1, sigma=1.2, Q=1), qweibull(p=0.25, scale=exp(0.1), shape=1/1.2))
 test(qgengamma(pgengamma(q=c(-2,-1,0,1,2,3,4), mu=0, sigma=1, Q=1), mu=0, sigma=1, Q=1),
+     c(0,0,0,1,2,3,4))
+test(qgengamma(pgengamma(q=c(-2,-1,0,1,2,3,4), mu=0, sigma=1, Q=-1), mu=0, sigma=1, Q=-1),
      c(0,0,0,1,2,3,4))
 test(qlnorm(pgengamma(q=c(-2,-1,0,1,2,3,4), mu=0, sigma=1, Q=0), meanlog=0, sdlog=1),
      c(0,0,0,1,2,3,4))

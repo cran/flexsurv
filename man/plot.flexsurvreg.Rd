@@ -7,7 +7,8 @@
   model against nonparametric estimates to diagnose goodness-of-fit. 
 }
 \usage{
-\method{plot}{flexsurvreg}(x, X=NULL, type="survival", col.obs="black", lty.obs=1, lwd.obs=1, 
+\method{plot}{flexsurvreg}(x, X=NULL, type="survival", tmax=NULL,
+        col.obs="black", lty.obs=1, lwd.obs=1, 
         col.fit="red", lty.fit=1, lwd.fit=2, add=FALSE,...)
 }
 \arguments{
@@ -53,7 +54,8 @@
     estimates tend to be unstable, and these plots are intended just to
     roughly indicate the shape of the hazards through time. 
   }
-    
+  \item{tmax}{ Maximum time point on the x-axis. By default, this is the
+    maximum time observed in the data. }
   \item{col.obs}{ Colour of the nonparametric curve. }
   \item{lty.obs}{ Line type of the nonparametric curve. }
   \item{lwd.obs}{ Line width of the nonparametric curve. }

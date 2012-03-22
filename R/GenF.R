@@ -2,7 +2,7 @@
 ## For P=0 this is equivalent to the generalized (log-)gamma (Prentice 1974) 
 ## P=Q=0, lognormal
 ## P=0, Q=1, Weibull 
-## Equation 2 in C.Cox is wrong, delta*beta*m1 not beta*m1 in first exponent in numerator
+## Equation 2 in C.Cox (2008) is wrong, delta*beta*m1 not beta*m1 in first exponent in numerator
 
 dgenf <- function(x, mu=0, sigma=1, Q, P, log=FALSE) { 
     if (!check.genf(mu=mu, sigma=sigma, Q=Q, P=P)) return(rep(NaN, length(x)))
@@ -160,3 +160,9 @@ check.genf.orig <- function(mu, sigma, s1, s2){
     if (any(s2 <= 0)) {warning("Non-positive shape parameter \"s2\""); ret <- FALSE}
     ret
 }
+
+## Thanks to Skif Pankov
+mean.genf.orig <- function(mu, sigma, s1, s2){
+    exp(mu) * (s2/s1)^sigma * gamma(s1 + sigma)*gamma(s2 - sigma) / (gamma(s1)*gamma(s2))
+}
+

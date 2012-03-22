@@ -44,7 +44,7 @@
     function of \eqn{x} is
 
     \deqn{f(x | \mu, \sigma, s_1, s_2) =
-\frac{(s_1/s_2)^{s_1} e^{s_1 w}}{\sigma t (1 + s_1 e^w/s_2) ^ {(s_1 +
+\frac{(s_1/s_2)^{s_1} e^{s_1 w}}{\sigma x (1 + s_1 e^w/s_2) ^ {(s_1 +
     s_2)} B(s_1, s_2)}
 }{f(x | mu, sigma, s_1, s_2) = ((s1/s2)^{s1} e^{s1 w}) / (sigma x (1 + s1 e^w/s2) ^ (s1 + s2) B(s1, s2)) }
     where \eqn{w = (\log(x) - \mu)/\sigma}{w = (log(x) - mu)/sigma} ,

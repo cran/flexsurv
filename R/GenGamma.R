@@ -49,6 +49,7 @@ qgengamma <- function(p, mu=0, sigma=1, Q, lower.tail = TRUE, log.p = FALSE)
     if (Q==0)
         qlnorm(p, mu, 1/sigma^2)
     else {
+        if (Q < 0) p <- 1 - p
         w <- log(Q^2*qgamma(p, 1/Q^2, 1)) / Q
         exp(mu + sigma*w)
     }
