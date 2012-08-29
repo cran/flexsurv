@@ -138,8 +138,19 @@ check.dlist <- function(dlist){
 flexsurvreg <- function(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
 {
     call <- match.call()
-    dat <- form.survdata(call, formula, data)
-    Y <- dat$Y; X <- dat$X 
+    indx <- match(c("formula", "data"), names(call), nomatch = 0)
+    if (indx[1] == 0) 
+        stop("A \"formula\" argument is required")
+    temp <- call[c(1, indx)]
+    temp[[1]] <- as.name("model.frame")
+    m <- eval(temp, parent.frame()) 
+    Y <- model.extract(m, "response")
+    if (!inherits(Y, "Surv")) 
+        stop("Response must be a survival object")
+    Terms <- attr(m, "terms")
+    X <- model.matrix(Terms, m)
+    dat <- list(Y=Y, X=X[,-1,drop=FALSE], Xraw=m[,-1,drop=FALSE])
+    X <- dat$X 
     if (missing(dist)) stop("Distribution \"dist\" not specified")
     if (is.character(dist)) { 
         match.arg(dist, names(flexsurv.dists))
@@ -183,7 +194,9 @@ flexsurvreg <- function(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
         res <- matrix(inits, ncol=1)
         dimnames(res) <- list(names(inits), "est")
         ret <- list(call=call, dlist=dlist, res=res, npars=0, 
-                    loglik=-minusloglik, AIC=2*minusloglik + 2*npars)
+                    loglik=-minusloglik, AIC=2*minusloglik,
+                    data = dat, datameans = colMeans(dat$X),
+                    N=nrow(dat$Y), events=sum(dat$Y[,"status"]), trisk=sum(dat$Y[,"time"]))
     }
     else { 
         optpars <- inits[setdiff(1:npars, fixedpars)]
@@ -208,8 +221,10 @@ flexsurvreg <- function(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
         colnames(res) <- c("est", paste(c("L","U"), round(cl*100), "%", sep=""))
         for (i in 1:nbpars)
             res[i,] <- dlist$inv.transforms[[i]](res[i,])
-        ret <- list(call=match.call(), dlist=dlist, res=res, npars=length(est), 
-                    loglik=-opt$value, AIC=2*opt$value + 2*length(est), cl=cl)
+        ret <- list(call=match.call(), dlist=dlist, res=res, npars=length(est),                   
+                    loglik=-opt$value, AIC=2*opt$value + 2*length(est), cl=cl, opt=opt,
+                    data = dat, datameans = colMeans(dat$X),
+                    N=nrow(dat$Y), events=sum(dat$Y[,"status"]), trisk=sum(dat$Y[,"time"]))
     }
     class(ret) <- "flexsurvreg"
     ret
@@ -217,9 +232,7 @@ flexsurvreg <- function(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
 
 print.flexsurvreg <- function(x, ...)
 {
-    dat <- form.survdata(x$call, as.formula(x$call$formula), data=eval(x$call$data))
-    covmeans <- colMeans(dat$X)
-    covs <- colnames(dat$X)
+    covs <- names(x$covmeans)
     covinds <- match(covs, rownames(x$res))
     cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
     res <- signif(x$res, 3)
@@ -229,63 +242,58 @@ print.flexsurvreg <- function(x, ...)
         colnames(ecoefs) <- c("exp(est)", colnames(res)[2:3])
         means <- rep(NA,nrow(x$res))
         ecoefs[covinds,] <- signif(exp(x$res[covinds,,drop=FALSE]), 3)
-        means[covinds] <- signif(covmeans, 3)
+        means[covinds] <- signif(x$covmeans, 3)
         res <- cbind(means, res, ecoefs)
         colnames(res)[1] <- "data mean"
     }
     print(res, quote=FALSE, na.print="")
-    cat("\nN = ", nrow(dat$Y), ",  Events: ", sum(dat$Y[,"status"]),
-        ",  Censored: ", sum(1 - dat$Y[,"status"]), 
-        "\nTotal time at risk: ", sum(dat$Y[,"time"]),
+    cat("\nN = ", x$N, ",  Events: ", x$events,
+        ",  Censored: ", x$N - x$events, 
+        "\nTotal time at risk: ", x$trisk,
         "\nLog-likelihood = ", x$loglik, ", df = ", x$npars, 
         "\nAIC = ", x$AIC, "\n\n", sep="")
 }
 
 plot.flexsurvreg <- function(x, X=NULL, type="survival", tmax=NULL, col.obs="black", lty.obs=1, lwd.obs=1, 
                             col.fit="red",lty.fit=1,lwd.fit=2,add=FALSE,...) { 
-    dat.orig <- eval(x$call$data)
-    dat <- form.survdata(x$call, as.formula(x$call$formula), data=dat.orig)
+    dat <- x$data
     ncovs <- ncol(dat$Xraw)
     isfac <- sapply(dat$Xraw,is.factor)
     type <- match.arg(type, c("survival","cumhaz","hazard"))
     if (ncovs > 0 && is.null(X)) { 
-        form <- as.formula(paste("~",paste(names(dat$Xraw),collapse="+")))
-        data <- dat.orig
-        if (is.null(data)) data <- .GlobalEnv
-        mf <- model.frame(form, data)
-        mm <- model.matrix(form, mf)
         ## if any continuous covariates, plot fitted survival for "average" covariate value
         if (!all(isfac))
-            X <- matrix(colMeans(mm[,-1,drop=FALSE]) ,nrow=1)
+            X <- matrix(colMeans(dat$X) ,nrow=1)
         ## else plot for all different factor groupings
-        else X <- unique(mm[,-1,drop=FALSE])
+        else X <- unique(dat$X)
     }
-    else if(is.null(X)) X <- as.matrix(0, nrow=1, ncol=max(ncol(dat$X),1))
+    else if (is.null(X)) X <- as.matrix(0, nrow=1, ncol=max(ncol(dat$X),1))
     t <- dat$Y[,"time"]
     if (is.null(tmax)) tmax <- max(t)
     t <- seq(min(t), tmax, by=(max(t) - min(t))/100)
     if (!add) { 
-        form <- as.formula(x$call$formula)
-        ## If any continuous covariates, it is hard to define subgroups
-        ## so just plot the population survival 
-        if (!all(isfac))
-            form[3] <- 1 
+        if (ncovs > 0 && all(isfac))
+            form <- as.formula(paste("dat$Y ~ ", paste("dat$X[,",1:ncol(dat$X),"]", collapse=" + ")))
+        else form <- dat$Y ~ 1
+      ## If any continuous covariates, it is hard to define subgroups
+      ## so just plot the population survival 
         if (type=="survival") {
-            plot(survfit(form, data=dat.orig), col=col.obs, lty=lty.obs, lwd=lwd.obs, ...)
+            plot(survfit(form, data=as.data.frame(dat$X)), col=col.obs, lty=lty.obs, lwd=lwd.obs, ...)
         }
         else if (type=="cumhaz") {
-            plot(survfit(form, data=dat.orig), fun="cumhaz", col=col.obs, lty=lty.obs, lwd=lwd.obs, ...)
+            plot(survfit(form, data=as.data.frame(dat$X)), fun="cumhaz", col=col.obs, lty=lty.obs, lwd=lwd.obs, ...)
         }
         else if (type=="hazard") {
             if (!all(isfac)) 
-                plot(muhaz(t,dat$Y[,"status"], ...), col=col.obs, lty=lty.obs, lwd=lwd.obs)
+                plot(muhaz(dat$Y[,"time"], dat$Y[,"status"], ...),
+                     col=col.obs, lty=lty.obs, lwd=lwd.obs)
             else {
                 ## plot hazard for all groups defined by unique combinations of covariates
-                group <- if(ncovs>0) do.call("interaction", as.data.frame(mm[,-1,drop=FALSE])) else factor(rep(1,nrow(dat$Y)))
+                group <- if(ncovs>0) do.call("interaction", as.data.frame(dat$X)) else factor(rep(1,nrow(dat$Y)))
                 haz <- list()
                 for (i in 1:nrow(X)) {
-                    subset <- (group == levels(group)[i])                    
-                    haz[[i]] <- muhaz(dat$Y[,"time"],dat$Y[,"status"], subset=subset, ...)
+                    subset <- (group == unique(group)[i])                    
+                    haz[[i]] <- muhaz(dat$Y[,"time"], dat$Y[,"status"], subset=subset, ...)
                 }
                 plot(haz[[1]], col=col.obs, lty=lty.obs, lwd=lwd.obs,
                      ylim=range(sapply(haz, function(x)range(x$haz.est))))
@@ -355,20 +363,4 @@ lines.flexsurvreg <- function(x, X=NULL, col.fit="red",lty.fit=1,lwd.fit=2, ...)
 }
 
 form.survdata <- function(Call, formula, data) {
-    indx <- match(c("formula", "data"), names(Call), nomatch = 0)
-    if (indx[1] == 0) 
-        stop("A \"formula\" argument is required")
-    temp <- Call[c(1, indx)]
-    temp[[1]] <- as.name("model.frame")
-    if (missing(data) || is.null(data)) {
-        data <- parent.frame(2)
-        m <- eval(temp)
-    }
-    else m <- eval(temp, parent.frame()) 
-    Y <- model.extract(m, "response")
-    if (!inherits(Y, "Surv")) 
-        stop("Response must be a survival object")
-    Terms <- attr(m, "terms")
-    X <- model.matrix(Terms, m)
-    list(Y=Y, X=X[,-1,drop=FALSE], Xraw=m[,-1,drop=FALSE])
 }

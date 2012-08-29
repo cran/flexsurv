@@ -1,8 +1,8 @@
 Package: flexsurv
 Type: Package
 Title: Flexible parametric survival models
-Version: 0.1.4
-Date: 2012-03-22
+Version: 0.1.5
+Date: 2012-08-29
 Author: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Maintainer: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Description: Flexible parametric models for time-to-event data,
@@ -13,6 +13,6 @@ License: GPL (>= 2)
 Depends: survival, muhaz
 Suggests: eha
 LazyLoad: yes
-Packaged: 2012-03-23 09:57:00 UTC; chris
+Packaged: 2012-08-29 15:39:34 UTC; chris
 Repository: CRAN
-Date/Publication: 2012-03-24 07:24:50
+Date/Publication: 2012-08-29 16:23:19

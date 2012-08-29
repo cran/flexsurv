@@ -52,7 +52,9 @@
     \code{"hazard"} for hazard, to be plotted against smooth nonparametric
     estimates from \code{\link[muhaz]{muhaz}}.  The nonparametric
     estimates tend to be unstable, and these plots are intended just to
-    roughly indicate the shape of the hazards through time. 
+    roughly indicate the shape of the hazards through time.  The \code{min.time} and \code{max.time}
+    options to \code{\link[muhaz]{muhaz}} may sometimes need to be
+    passed as arguments to \code{\link{plot.flexsurvreg}} to avoid an error here.
   }
   \item{tmax}{ Maximum time point on the x-axis. By default, this is the
     maximum time observed in the data. }
@@ -70,7 +72,9 @@
   \item{...}{Other options to be passed to 
     \code{\link{plot.survfit}} or \code{\link[muhaz]{muhaz}}, for
     example, to control the smoothness of the nonparametric hazard
-    estimates. }
+    estimates.  The \code{min.time} and \code{max.time}
+    options to \code{\link[muhaz]{muhaz}} may sometimes need to be
+    changed from the defaults.}
 }
 \note{
   Some standard plot arguments such as \code{"xlim","xlab"} may not work. 

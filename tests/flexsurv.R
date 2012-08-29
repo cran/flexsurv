@@ -18,7 +18,8 @@ test <- function(x, y, tol=1e-06) {
 try(fitf <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf",
                   control=list(trace=1,REPORT=1,maxit=10000,ndeps=rep(1e-06,4))))
 ## Basic GG fit 
-fitg <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="gengamma")
+fitg <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, dist="gengamma")
+fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian, dist="gengamma")
 ## GF with "p" fixed at 0 
 fitffix <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf",
                        fixedpars=4, inits=c(NA,NA,NA,1e-05))
@@ -171,6 +172,8 @@ if (interactive()) {
     plot.flexsurvreg(fitg)
     plot.flexsurvreg(fitg, X=rbind(c(0), c(1)))
     lines.flexsurvreg(fitg, X=rbind(c(1.1), c(1.2)))
+    plot.flexsurvreg(fitg, type="hazard")
+    plot.flexsurvreg(fitg, type="cumhaz")
 }
 
 x <- rnorm(500,0,1)
@@ -184,13 +187,27 @@ if (interactive()) {
     lines.flexsurvreg(fit, X=matrix(c(1,2),nrow=2))
     plot(fit)
     fit
+    plot(fit, type="hazard", min.time=0, max.time=25)
+    lines(fit, type="hazard", X=matrix(c(1,2),nrow=2))
 }
+x2 <- factor(rbinom(500, 1, 0.5))
+fit <- flexsurvreg(Surv(simt, dead) ~ x + x2, dist="genf", control=list(trace=1,REPORT=1,maxit=10000))
+plot(fit)
+plot(fit, type="cumhaz")
+plot(fit, type="hazard", min.time=0, max.time=25)
+x3 <- factor(rbinom(500, 1, 0.5))
+fit <- flexsurvreg(Surv(simt, dead) ~ x2 + x3, dist="genf", control=list(trace=1,REPORT=1,maxit=10000))
+fit <- flexsurvreg(Surv(simt, dead) ~ x2, dist="genf", control=list(trace=1,REPORT=1,maxit=10000))
+plot(fit)
 
-x <- rnorm(500,0,1)
-sim <- rgengamma(500, 1.5 + 2*x, 1, -0.4) 
+x3 <- rnorm(500,0,1)
+sim <- rgengamma(500, 1.5 + 2*x3, 1, -0.4) 
 dead <- as.numeric(sim<=30)
 simt <- ifelse(sim<=30, sim, 30)
-fit <- flexsurvreg(Surv(simt, dead) ~ x, dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000))
+fit <- flexsurvreg(Surv(simt, dead) ~ x3, dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000))
+fit <- flexsurvreg(Surv(simt, dead) ~ x + x2 + x3, dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000))
+fit <- flexsurvreg(Surv(simt, dead)[1:100] ~ x[1:100] + x2[1:100], dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000), method="BFGS")
+fit <- flexsurvreg(Surv(simt, dead)[1:100] ~ x[1:100], dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000))
 fit
 
 ## Errors
@@ -215,7 +232,7 @@ try(fitf <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data
 ### OTHER DATASETS (local developer use only)
 
 if (0) { 
-    load("~/oral/tcrb.rda")
+    load("~/work/oral/tcrb.rda")
     ## Without covs 
     fit <- flexsurvreg(Surv(survtime, dead2) ~ 1, data=tcrb, dist="genf")
     fit.gg <- flexsurvreg(Surv(survtime, dead2) ~ 1, data=tcrb, dist="gengamma")
@@ -248,6 +265,44 @@ if (0) {
     
     fitc.f <- flexsurvreg(Surv(survtime, dead2) ~ stage, data=tcrb, dist="genf")
     plot(fitc.f)  
+    plot(fitc.f, type="hazard", min.time=0, max.time=10)
     plot(survfit(Surv(survtime, dead2) ~ stage, data=tcrb))
     lines(fitc.f, X=rbind(c(0,0,0),c(1,0,0),c(0,1,0),c(0,0,1)))
 } 
+
+### calling flexsurvreg from within a function
+### environment bug in early versions
+
+f <- function(){
+  ovarian2 <- ovarian
+  fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian2, dist="gengamma")
+  print(fitg)
+  if(interactive()) plot(fitg)
+  fitg <- flexsurvreg(formula = Surv(ovarian2$futime, ovarian2$fustat) ~ factor(ovarian2$rx), dist="gengamma")
+  if(interactive()) print(fitg)
+  plot(fitg)
+}
+f()
+
+fitg <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, dist="gengamma")
+plot(fitg)
+plot(fitg, type="cumhaz")
+plot(fitg, type="hazard", min.time=0, max.time=1000)
+fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data=ovarian, dist="gengamma")
+plot(fitg)
+
+## does it work with lexical scoping
+f <- function(){
+  ovarian2 <- ovarian
+  g <- function(){
+    fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian2, dist="gengamma")
+    print(fitg)
+    if(interactive()) plot(fitg)
+    fitg <- flexsurvreg(formula = Surv(ovarian2$futime, ovarian2$fustat) ~ factor(ovarian2$rx), dist="gengamma")
+    if(interactive()) print(fitg)
+    plot(fitg)
+    plot(fitg, type="hazard")
+  }
+  g()
+}
+f()

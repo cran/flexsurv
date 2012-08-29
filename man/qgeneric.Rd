@@ -37,7 +37,9 @@ qgeneric(pdist, p, lower.tail = TRUE, log.p = FALSE, ...)
   It works by finding the root of the equation \eqn{h(q) = pdist(q) - p = 0}.
   Starting from the interval \eqn{(-1, 1)}, the interval width
   is expanded by 50\% until \eqn{h()} is of opposite sign at either end. 
-  The root is then found using \code{\link{uniroot}}.  
+  The root is then found using \code{\link{uniroot}}.
+
+  This assumes a suitably smooth, continuous distribution.
 }
 \examples{
 qnorm(c(0.025, 0.975), 0, 1)

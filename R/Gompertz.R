@@ -43,14 +43,33 @@ qgompertz <- function(p, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
         ret <- qexp(p, rate=rate)
     }
     else {
-        ret <- 1 / shape * log1p(-log1p(-p) * shape / rate)
+        asymp <- 1 - exp(rate/shape)
+        immortal <- shape < 0 & p > asymp
+        ret <- numeric(length(p))
+        ret[immortal] <- Inf
+
+        ## replicate arguments to length of longest vector (ugh)
+        if (length(shape) < length(p))
+            shape <- rep(shape, length=length(p))
+        if (length(rate) < length(p))
+            shape <- rep(shape, length=length(p))
+        if (length(p) < length(rate))
+            p <- rep(p, length=length(rate))
+        if (length(p) < length(shape))
+            p <- rep(p, length=length(shape))
+        if (length(shape) < length(rate))
+            shape <- rep(shape, length=length(rate))
+        if (length(rate) < length(shape))
+            rate <- rep(rate, length=length(shape))
+        
+        ret[!immortal] <- 1 / shape[!immortal] *
+            log1p(-log1p(-p[!immortal]) * shape[!immortal] / rate[!immortal])
     }
     ret
 }
 
 rgompertz <- function(n, shape = 1, rate = 1){
     if (!check.gompertz(shape=shape, rate=rate)) return(rep(NaN, n))
-    check.gompertz(shape=shape, rate=rate)
     qgompertz(p=runif(n), shape=shape, rate=rate)
 }
 

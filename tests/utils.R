@@ -239,3 +239,9 @@ if (interactive()) {
     x <- seq(0, 20, by=0.001)
     lines(x, dgompertz(x, shape=0.1, rate=0.2), lty=2)
 }
+## Gompertz with chance of living forever
+shape <- -0.6; rate <- 1.8
+x <- c(0.8, 0.9, 0.97, 0.99)
+test(qgompertz(x, shape=shape, rate=rate), c(1.28150707286845, 2.4316450975351, Inf, Inf))
+# qgeneric(pgompertz, p=x, shape=shape, rate=rate) # won't work - needs smoothness
+test(pgompertz(Inf, shape=shape, rate=rate), 0.950212931632136)

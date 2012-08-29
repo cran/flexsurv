@@ -1,5 +1,6 @@
 ### SPLINES
 library(flexsurv)
+data(bc)
 
 ## for local use 
 if (0) {
@@ -7,15 +8,13 @@ if (0) {
     library(muhaz)
     for (i in list.files("../R", "*.R$")) 
         source(paste("../R/",i,sep=""))
+    bc <- read.table("../data/bc.txt")
 }
 
 test <- function(x, y, tol=1e-06) {
     stopifnot(isTRUE(all.equal(x, y, tol=tol)))
 }
 
-data(bc)
-# or for development use: 
-# bc <- read.table("../data/bc.txt")
 bc$foo <- factor(sample(1:3, nrow(bc), replace=TRUE))
 bc$cts <- rnorm(nrow(bc))
 bc$recyrs <- bc$rectime/365

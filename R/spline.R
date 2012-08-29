@@ -1,8 +1,19 @@
 flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits=NULL, fixedpars=NULL, cl=0.95,...)
 {
     call <- match.call()
-    dat <- form.survdata(call, formula, data)
-    Y <- dat$Y; X <- dat$X 
+    indx <- match(c("formula", "data"), names(call), nomatch = 0)
+    if (indx[1] == 0) 
+        stop("A \"formula\" argument is required")
+    temp <- call[c(1, indx)]
+    temp[[1]] <- as.name("model.frame")
+    m <- eval(temp, parent.frame()) 
+    Y <- model.extract(m, "response")
+    if (!inherits(Y, "Surv")) 
+        stop("Response must be a survival object")
+    Terms <- attr(m, "terms")
+    X <- model.matrix(Terms, m)
+    dat <- list(Y=Y, X=X[,-1,drop=FALSE], Xraw=m[,-1,drop=FALSE])
+    X <- dat$X 
     ## knots=m=0, df=1, == no knots = weibull 
     ## choose knot locations by quantiles
     ## inits : m+2 gammas, beta 
@@ -52,8 +63,10 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
         minusloglik <- minusloglik.stpm(optpars=inits, knots=knots, t=Y[,"time"], dead=Y[,"status"], X=X, inits=inits,
                                    fixedpars=NULL, scale=scale)
         res <- cbind(est=inits,lcl=NA,ucl=NA)
-        ret <- list(call=match.call(), k=k, knots=knots, scale=scale, res=res,
-                    loglik=-minusloglik, AIC=2*minusloglik + 2*npars)
+        ret <- list(call=match.call(), k=k, knots=knots, scale=scale, res=res, npars=0,
+                    loglik=-minusloglik, AIC=2*minusloglik,
+                    data = dat, datameans = colMeans(dat$X),
+                    N=nrow(dat$Y), events=sum(dat$Y[,"status"]), trisk=sum(dat$Y[,"time"]))
     }
     else { 
         optpars <- inits[setdiff(1:npars, fixedpars)]
@@ -69,8 +82,10 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
         res <- cbind(est=inits, lcl=NA, ucl=NA)
         res[setdiff(1:npars, fixedpars),] <- cbind(est, lcl, ucl)
         colnames(res) <- c("est", paste(c("L","U"), round(cl*100), "%", sep=""))
-        ret <- list(call=match.call(), k=k, knots=knots, scale=scale, res=res, 
-                    loglik=-opt$value, AIC=2*opt$value + 2*npars)
+        ret <- list(call=match.call(), k=k, knots=knots, scale=scale, res=res,  npars=length(est),
+                    loglik=-opt$value, AIC=2*opt$value + 2*length(est),
+                    data = dat, datameans = colMeans(dat$X),
+                    N=nrow(dat$Y), events=sum(dat$Y[,"status"]), trisk=sum(dat$Y[,"time"]))
     }
     class(ret) <- "flexsurvreg"
     ret
