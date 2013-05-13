@@ -22,7 +22,9 @@ flexsurvreg(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
     \code{Surv(time, dead) ~ age + sex}
 
     If there are no covariates, specify \code{1} on the right hand side,
-    for example \code{Surv(time, dead) ~ 1}.     
+    for example \code{Surv(time, dead) ~ 1}.   Only \code{Surv} objects
+    of \code{type="right"} or \code{type="counting"}, corresponding to
+    right-censored and/or left-truncated observations, are supported.
   }
   \item{data}{
     A data frame in which to find variables supplied in \code{formula}.
@@ -52,12 +54,16 @@ flexsurvreg(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
     \code{\link{dweibull}}, \code{\link{dgamma}}, \code{\link{dexp}},
     \code{\link{dlnorm}}, \code{\link{dgompertz}}, respectively.  The
     functions in base R are used where available, otherwise, they are
-    provided in this package.  Covariates are placed directly on the
-    parameter of the distribution which determines its mean, possibly
-    under a log link function.
+    provided in this package.  Covariates are included through a linear
+    model on the parameter of the distribution which determines its mean, for
+    example, the "location", "scale" or "rate" parameter,
+    or a log-linear model for parameters constrained to be positive.
+    This gives an accelerated failure time model or a proportional
+    hazards model, depending on the distribution.  
     
     Note that the Weibull parameterisation is different from that
-    in \code{\link[survival]{survreg}}.
+    in \code{\link[survival]{survreg}}, instead it is
+    consistent with \code{\link{dweibull}}.
     The \code{"scale"} reported by \code{\link[survival]{survreg}}
     is equivalent to \code{1/shape} as defined by
     \code{\link{dweibull}} and hence \code{\link{flexsurvreg}}.
@@ -97,8 +103,7 @@ flexsurvreg(formula, data, dist, inits, fixedpars=NULL, cl=0.95,...)
     If the optimisation fails to converge, consider normalising the
     problem using, for example, \code{control=list(fnscale = 2500)}, for
     example, replacing 2500 by a number of the order of magnitude of the
-    likelihood. If 'false' convergence is reported and the standard
-    errors cannot be calculated due to a non-positive-definite Hessian,
+    likelihood. If 'false' convergence is reported with a non-positive-definite Hessian,
     then consider tightening the tolerance criteria for convergence. If
     the optimisation takes a long time, intermediate steps can be
     printed using the \code{trace} argument of the control list. See
@@ -204,7 +209,7 @@ fitg
 fitw <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian, dist="weibull")
 fitw
 plot(fitg)
-lines(fitw, col="blue")
+lines(fitw, col="blue", lwd.ci=1, lty.ci=1)
 ## Identical AIC, probably not enough data in this simple example for a
 ## very flexible model to be worthwhile. 
 
@@ -218,7 +223,7 @@ custom.llogis <- list(name="llogis",
                       inits=function(t){ c(1, median(t)) })
 fitl <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian, dist=custom.llogis)
 fitl
-lines(fitl, col="purple")
+lines(fitl, col.fit="purple", col.ci="purple")
 }
 \keyword{models}
 \keyword{survival}

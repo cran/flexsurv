@@ -162,6 +162,7 @@ check.genf.orig <- function(mu, sigma, s1, s2){
 }
 
 ## Thanks to Skif Pankov
+## currently undocumented and unused!
 mean.genf.orig <- function(mu, sigma, s1, s2){
     exp(mu) * (s2/s1)^sigma * gamma(s1 + sigma)*gamma(s2 - sigma) / (gamma(s1)*gamma(s2))
 }

@@ -13,11 +13,12 @@ flexsurv: Flexible parametric models for time-to-event data
 }
 \details{
 
-  \code{\link{flexsurvreg}} fits parametric time-to-event (survival)
-  models.  Several built-in parametric distributions are available.  Any
+  \code{\link{flexsurvreg}} fits parametric models for time-to-event
+  (survival) data.  Data may be right-censored or left-truncated.
+  Several built-in parametric distributions are available.  Any
   user-defined parametric model can also be employed by supplying a list
-  with basic information about the distribution, including the density and
-  probability functions.
+  with basic information about the distribution, including the density
+  and probability functions.
 
   Covariates are included using a linear model on a location parameter of
   the distribution.  This usually defines an accelerated failure time or
@@ -29,9 +30,10 @@ flexsurv: Flexible parametric models for time-to-event data
   linear term for covariates.  Alternative proportional odds or probit
   parameterisations are available.
 
-  Output from the models can be presented as plots of the survivor, cumulative
-  hazard and hazard functions (\code{\link{plot.flexsurvreg}}). These are
-  compared against nonparametric estimates to assess goodness-of-fit.
+  Output from the models can be presented as survivor, cumulative
+  hazard and hazard functions (\code{\link{summary.flexsurvreg}}).
+  These can be plotted against nonparametric estimates
+  (\code{\link{plot.flexsurvreg}}) to assess goodness-of-fit.
 
   Distribution (``dpqr'') functions for the generalized gamma and F distributions are
   given in \code{\link{GenGamma}}, \code{\link{GenF}} (preferred
@@ -39,7 +41,7 @@ flexsurv: Flexible parametric models for time-to-event data
   \code{\link{GenF.orig}} (original parameterisations).
 
   \code{\link{flexsurv}} also includes the standard Gompertz distribution
-  with unrestricted shape parameter, see \code{\link{Gompertz}}. 
+  with unrestricted shape parameter, see \code{\link{Gompertz}}.
 
 }
 \section{Related R packages}{
@@ -49,10 +51,10 @@ flexsurv: Flexible parametric models for time-to-event data
   generalized F and the Royston-Parmar spline
   model. However it was straightforward to modularise the design of the
   code to accept any generic parametric distribution.
-  
+
   \code{\link[survival]{survreg}} from the \pkg{survival} package, the
-  standard parametric survival modelling facility in R, only implements
-  two-parameter location-scale families.
+  recommended R package for survival analysis, supports two-parameter
+  location-scale parametric models.
 
   The \pkg{eha} package includes functions \code{\link[eha]{phreg}} and
   \code{\link[eha]{aftreg}} for parametric survival modelling under a
@@ -69,9 +71,8 @@ flexsurv: Flexible parametric models for time-to-event data
   for a parametric distribution, it can then be used easily in
   \code{\link{flexsurvreg}}.  For instance, several ``reliability''
   distributions used in industrial statistics are available in the
-  \pkg{VGAM} package.  Independent corroboration of modelling results
-  with different software can be valuable!
-  
+  \pkg{VGAM} package.  Please report unexplained inconsistencies in
+  results between \pkg{flexsurv} and other software. 
 }
 \author{
   Christopher Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}
@@ -80,12 +81,12 @@ flexsurv: Flexible parametric models for time-to-event data
   Royston, P. and Parmar, M. (2002).  Flexible parametric
   proportional-hazards and proportional-odds models for censored survival
   data, with application to prognostic modelling and estimation of
-  treatment effects. Statistics in Medicine 21(1):2175-2197. 
+  treatment effects. Statistics in Medicine 21(1):2175-2197.
 
   Cox, C. (2008). The generalized \eqn{F} distribution: An umbrella for
   parametric survival analysis.  Statistics in Medicine 27:4301-4312.
 
-  Cox, C., Chu, H., Schneider, M. F. and Muñoz, A. (2007). 
+  Cox, C., Chu, H., Schneider, M. F. and Muñoz, A. (2007).
   Parametric survival analysis and taxonomy of hazard functions for the
   generalized gamma distribution.  Statistics in Medicine 26:4252-4374
 }

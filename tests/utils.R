@@ -245,3 +245,20 @@ x <- c(0.8, 0.9, 0.97, 0.99)
 test(qgompertz(x, shape=shape, rate=rate), c(1.28150707286845, 2.4316450975351, Inf, Inf))
 # qgeneric(pgompertz, p=x, shape=shape, rate=rate) # won't work - needs smoothness
 test(pgompertz(Inf, shape=shape, rate=rate), 0.950212931632136)
+
+## Spline distribution functions
+regscale <- 0.786; cf <- 1.82
+a <- 1/regscale; b <- exp(cf)
+d1 <- dweibull(1, shape=a, scale=b)
+d2 <- dsurvspline(1, gamma=c(log(1 / b^a), a))
+test(d1, d2)
+p1 <- pweibull(1, shape=a, scale=b)
+p2 <- psurvspline(1, gamma=c(log(1 / b^a), a))
+test(p1, p2)
+meanlog <- 1.52; sdlog <- 1.11
+d1 <- dlnorm(1, meanlog, sdlog)
+d2 <- dsurvspline(1, gamma = c(-meanlog/sdlog, 1/sdlog), scale="normal")
+test(d1, d2)
+p1 <- plnorm(1, meanlog, sdlog)
+p2 <- psurvspline(1, gamma = c(-meanlog/sdlog, 1/sdlog), scale="normal")
+test(p1, p2)

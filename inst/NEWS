@@ -1,5 +1,35 @@
 -*- text -*-
 
+Version 0.2 (2013-05-13)
+-------------------------
+
+* New summary() method for fitted flexsurvreg and flexsurvspline model
+  objects gives fitted survival, cumulative hazard or hazard curves,
+  with confidence intervals mosly computed by a simulation method.
+
+* This allows plot.flexsurvreg to plot confidence intervals for the
+  fitted survival, hazard or cumulative hazard.
+
+* Left-truncated survival observations are supported in flexsurvreg
+  and flexsurvspline.
+
+* New psurvspline and dsurvspline functions giving distribution and
+  density function for the spline model.
+
+* Analytic derivatives used in optimisation for spline (odds and
+  hazard scale, not normal), exponential, Weibull and Gompertz models.
+
+* Default to BFGS optimisation method, which uses derivatives where
+  available and should be much faster, instead of Nelder-Mead.
+
+* Work around NaN warnings from spline models presumably due to
+  parameters violating implicit constraints.
+
+* If "knots" specified, boundary knots set to min/max of uncensored
+  times, not all times, to match results when "k" is specified.
+  Thanks to Paul Pynsent.
+
+
 Version 0.1.5 (2012-08-29)
 -------------------------
 
@@ -34,7 +64,7 @@ Version 0.1.3 (2012-01-17)
 * No longer complains about invalid initial values when there are zero
   survival times.
 
-* Don't transform parameter estimates in output when fixedpars=TRUE. 
+* Don't transform parameter estimates in output when fixedpars=TRUE.
 
 * Checking functions for distribution utilities don't complain about
   vectorised parameter values.
@@ -43,7 +73,7 @@ Version 0.1.3 (2012-01-17)
 Version 0.1.2 (2011-11-08)
 --------------------------
 
-* Initial CRAN release.  
+* Initial CRAN release.
 
 * More features in print output for flexsurvreg and flexsurvspline
   models.

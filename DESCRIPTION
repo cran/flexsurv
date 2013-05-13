@@ -1,8 +1,8 @@
 Package: flexsurv
 Type: Package
 Title: Flexible parametric survival models
-Version: 0.1.5
-Date: 2012-08-29
+Version: 0.2
+Date: 2013-05-13
 Author: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Maintainer: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Description: Flexible parametric models for time-to-event data,
@@ -10,9 +10,14 @@ Description: Flexible parametric models for time-to-event data,
         and generalized F distributions.  Easily extensible to fit
         user-defined parametric distributions.
 License: GPL (>= 2)
-Depends: survival, muhaz
+Depends: survival
+Imports: muhaz,mvtnorm
 Suggests: eha
 LazyLoad: yes
-Packaged: 2012-08-29 15:39:34 UTC; chris
 Repository: CRAN
-Date/Publication: 2012-08-29 16:23:19
+Repository/R-Forge/Project: flexsurv
+Repository/R-Forge/Revision: 14
+Repository/R-Forge/DateTimeStamp: 2013-05-14 15:19:03
+Date/Publication: 2013-05-15 19:05:21
+Packaged: 2013-05-14 18:15:56 UTC; rforge
+NeedsCompilation: no
