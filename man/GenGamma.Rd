@@ -69,7 +69,7 @@
   \tabular{lcl}{
     \code{dgengamma(x, mu, sigma, Q=0)} \tab \code{=} \tab \code{dlnorm(x, mu, sigma)} \cr
     \code{dgengamma(x, mu, sigma, Q=1)} \tab \code{=} \tab  \code{dweibull(x, shape=1/sigma, scale=exp(mu))} \cr
-    \code{dgengamma(x, mu, sigma, Q=sigma)} \tab \code{=} \tab \code{dgamma(x, shape=1/Q^2, rate=exp(-mu) / Q^2)} \cr
+    \code{dgengamma(x, mu, sigma, Q=sigma)} \tab \code{=} \tab \code{dgamma(x, shape=1/sigma^2, rate=exp(-mu) / sigma^2)} \cr
   }
   The properties of the generalized gamma and its applications to
   survival analysis are discussed in detail by Cox (2007). 

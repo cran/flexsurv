@@ -71,8 +71,8 @@ Hgompertz(x, shape, rate = 1)
   that what is called the \code{shape} there is called the \code{rate}
   here, and what is called \code{1 / scale} there is called the
   \code{shape} here. The terminology here is consistent with the
-  exponential \code{\link{dexp}} and Weibull distributions
-  \code{\link{dweibull}} in R.  
+  exponential \code{\link{dexp}} and Weibull \code{\link{dweibull}}
+  distributions in R.  
 }
 \references{
   Stata Press (2007) Stata release 10 manual: Survival analysis and

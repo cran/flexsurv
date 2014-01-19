@@ -48,7 +48,10 @@
     \code{"hazard"} for hazards.
   }
   \item{t}{ Times to calculate fitted values for. By default, these are the
-    sorted unique observation (including censoring) times in the data. }
+    sorted unique observation (including censoring) times in the
+    data. If the corresponding left-truncation times \code{start} are not
+    supplied, then they all default to 0.
+  }
 
   \item{start}{ Left-truncation times, defaults to those corresponding
   to the default \code{t} in the data. }

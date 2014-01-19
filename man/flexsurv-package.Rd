@@ -20,9 +20,10 @@ flexsurv: Flexible parametric models for time-to-event data
   with basic information about the distribution, including the density
   and probability functions.
 
-  Covariates are included using a linear model on a location parameter of
-  the distribution.  This usually defines an accelerated failure time or
-  proportional hazards model, depending on the distribution and parameter.
+  Covariates can be included using a linear model on any parameter of
+  the distribution, log-transformed to the real line if necessary.  This
+  typically defines an accelerated failure time or proportional hazards
+  model, depending on the distribution and parameter.
 
   \code{\link{flexsurvspline}} fits the flexible survival model of
   Royston and Parmar (2002) in which the log cumulative hazard is
@@ -72,7 +73,7 @@ flexsurv: Flexible parametric models for time-to-event data
   \code{\link{flexsurvreg}}.  For instance, several ``reliability''
   distributions used in industrial statistics are available in the
   \pkg{VGAM} package.  Please report unexplained inconsistencies in
-  results between \pkg{flexsurv} and other software. 
+  results between \pkg{flexsurv} and other software.
 }
 \author{
   Christopher Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}

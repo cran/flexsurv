@@ -1,5 +1,58 @@
 -*- text -*-
 
+Version 0.3 (2014-01-19)
+------------------------
+
+* CRAN release. Includes changes from 0.2.1 to 0.2.3.
+
+
+Version 0.2.3 (2013-10-09)
+-------------------------
+
+* R-forge only release.
+
+* Parameters other than the location parameter can now have covariates
+  on them in flexsurvreg.  Thanks to Milan Bouchet-Valat for help with
+  this.
+
+* subset and na.action arguments in flexsurvreg and flexsurvspline.
+
+* coef, vcov and confint methods for all fitted model objects.
+
+* Distribution functions for generalized gamma, generalized F, and
+  Gompertz, now allow all parameters to be vectorised.
+
+* Bug fix in analytic derivatives for Weibull.
+
+* Restored print output introduced in 0.1.2 which had been
+  accidentally removed in 0.1.5.
+
+
+Version 0.2.2 (2013-07-26)
+-------------------------
+
+* R-forge only release.
+
+* Case weights supported in flexsurvreg and flexsurvspline.
+
+
+Version 0.2.1 (2013-07-03)
+-------------------------
+
+* R-forge only release.
+
+* Default left truncation times were being set wrongly for
+  user-supplied times in summary.flexsurvreg, giving wrong confidence
+  intervals.  These now default to 0.
+
+* Confidence intervals set to 1 for t=0 under spline models. Thanks to
+  Paul Pynsent.
+
+* dgompertz,dgengamma,dgengamma.orig,dgenf,dgenf.orig fixed to return
+  -Inf instead of 0 when density is zero and log=TRUE.  Thanks to Gao
+  Zheng.
+
+
 Version 0.2 (2013-05-13)
 -------------------------
 

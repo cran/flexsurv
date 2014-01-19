@@ -7,70 +7,87 @@
 ## shape/scale labelled wrong way round.
 
 dgompertz <- function(x, shape, rate=1, log=FALSE) {
-    if (!check.gompertz(shape=shape, rate=rate)) return(rep(NaN, length(x)))
-    ret <- numeric(length(x))
-    ret[x<0] <- 0
-    t <- x[x>=0]
-    if (shape==0) {
-        logdens <- dexp(t, rate=rate, log=TRUE)
-    }
-    else { 
-        logdens <- log(rate) + shape*t - rate/shape*(exp(shape*t) - 1)
+    n <- max(length(x),length(shape),length(rate))
+    x <- rep(x, length=n)
+    shape <- rep(shape, length=n)
+    rate <- rep(rate, length=n)
+    ret <- numeric(n)
+    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
+    if (all(is.nan(ret))) return(ret);
+    ret[!is.nan(ret) & (x<0)] <- if (log) -Inf else 0
+    ind <- !is.nan(ret) & (x>=0)
+    x <- x[ind]; shape <- shape[ind]; rate <- rate[ind]
+    logdens <- numeric(length(x))
+    logdens[shape==0] <- dexp(x[shape==0], rate=rate[shape==0], log=TRUE)
+    sn0 <- shape!=0
+    if (any(sn0)) { 
+        x <- x[sn0]; shape <- shape[sn0]; rate <- rate[sn0]
+        logdens[sn0] <- log(rate) + shape*x - rate/shape*(exp(shape*x) - 1)
     }    
-    ret[x>=0] <- if (log) logdens else exp(logdens)
+    ret[ind] <- if (log) logdens else exp(logdens)
     ret
 }
 
 pgompertz <- function(q, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
-    if (!check.gompertz(shape=shape, rate=rate)) return(rep(NaN, length(q)))
+    n <- max(length(q),length(shape),length(rate))
+    q <- rep(q, length=n)
+    shape <- rep(shape, length=n)
+    rate <- rep(rate, length=n)
+    ret <- numeric(n)
+    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
+    if (all(is.nan(ret))) return(ret);
     q[q<0] <- 0
-    if (shape==0) {
-        ret <- pexp(q, rate=rate)
+    ind <- !is.nan(ret)
+    q <- q[ind]; shape <- shape[ind]; rate <- rate[ind]
+    prob <- numeric(length(q))
+    prob[shape==0] <- pexp(q[shape==0], rate=rate[shape==0])
+    sn0 <- shape!=0
+    if (any(sn0)) { 
+        q <- q[sn0]; shape <- shape[sn0]; rate <- rate[sn0]
+        prob[sn0] <- 1 - exp(-rate/shape*(exp(shape*q) - 1))
     }
-    else { 
-        ret <- 1 - exp(-rate/shape*(exp(shape*q) - 1))
-    }
-    if (!lower.tail) ret <- 1 - ret
-    if (log.p) ret <- log(ret)
+    if (!lower.tail) prob <- 1 - prob
+    if (log.p) prob <- log(prob)
+    ret[ind] <- prob
     ret
 }
 
 qgompertz <- function(p, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
-    if (!check.gompertz(shape=shape, rate=rate)) return(rep(NaN, length(p)))
+    n <- max(length(p),length(shape),length(rate))
+    p <- rep(p, length=n)
+    shape <- rep(shape, length=n)
+    rate <- rep(rate, length=n)
+    ret <- numeric(n)
+    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
+    if (all(is.nan(ret))) return(ret);
     if (log.p) p <- exp(p)
     if (!lower.tail) p <- 1 - p
-    if (shape==0) {
-        ret <- qexp(p, rate=rate)
-    }
-    else {
+    ind <- !is.nan(ret)
+    p <- p[ind]; shape <- shape[ind]; rate <- rate[ind]
+    ret[ind][shape==0] <- qexp(p[shape==0], rate=rate[shape==0])
+    sn0 <- shape!=0
+    if (any(sn0)) { 
+        p <- p[sn0]; shape <- shape[sn0]; rate <- rate[sn0]
         asymp <- 1 - exp(rate/shape)
         immortal <- shape < 0 & p > asymp
-        ret <- numeric(length(p))
-        ret[immortal] <- Inf
-
-        ## replicate arguments to length of longest vector (ugh)
-        if (length(shape) < length(p))
-            shape <- rep(shape, length=length(p))
-        if (length(rate) < length(p))
-            shape <- rep(shape, length=length(p))
-        if (length(p) < length(rate))
-            p <- rep(p, length=length(rate))
-        if (length(p) < length(shape))
-            p <- rep(p, length=length(shape))
-        if (length(shape) < length(rate))
-            shape <- rep(shape, length=length(rate))
-        if (length(rate) < length(shape))
-            rate <- rep(rate, length=length(shape))
-        
-        ret[!immortal] <- 1 / shape[!immortal] *
+        ret[ind][sn0][immortal] <- Inf        
+        ret[ind][sn0][!immortal] <- 1 / shape[!immortal] *
             log1p(-log1p(-p[!immortal]) * shape[!immortal] / rate[!immortal])
     }
     ret
 }
 
 rgompertz <- function(n, shape = 1, rate = 1){
-    if (!check.gompertz(shape=shape, rate=rate)) return(rep(NaN, n))
-    qgompertz(p=runif(n), shape=shape, rate=rate)
+    if (length(n) > 1) n <- length(n)
+    shape <- rep(shape, length=n)
+    rate <- rep(rate, length=n)
+    ret <- numeric(n)
+    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
+    if (all(is.nan(ret))) return(ret);
+    ind <- !is.nan(ret)
+    shape <- shape[ind]; rate <- rate[ind]    
+    ret[ind] <- qgompertz(p=runif(sum(ind)), shape=shape, rate=rate)
+    ret
 }
 
 hgompertz <- function(x, shape, rate=1){
@@ -85,8 +102,8 @@ Hgompertz <- function(x, shape, rate=1){
 }
 
 check.gompertz <- function(shape, rate=1){
-    ret <- TRUE
+    ret <- rep(TRUE, length(shape))
     if (missing(shape)) stop("shape parameter not given")
-    if (any(rate<=0)) {warning("Non-positive rate parameter"); ret <- FALSE}
+    if (any(rate<0)) {warning("Negative rate parameter"); ret[rate<0] <- FALSE}
     ret
 }

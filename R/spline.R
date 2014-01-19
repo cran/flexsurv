@@ -1,7 +1,7 @@
-flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits=NULL, fixedpars=NULL, cl=0.95, ...)
+flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", weights, subset, na.action, inits=NULL, fixedpars=NULL, cl=0.95, ...)
 {
     call <- match.call()
-    indx <- match(c("formula", "data"), names(call), nomatch = 0)
+    indx <- match(c("formula", "data", "subset", "na.action"), names(call), nomatch = 0)
     if (indx[1] == 0)
         stop("A \"formula\" argument is required")
     temp <- call[c(1, indx)]
@@ -19,6 +19,8 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
     X <- model.matrix(Terms, m)
     dat <- list(Y=Y, X=X[,-1,drop=FALSE], Xraw=m[,-1,drop=FALSE])
     X <- dat$X
+    if (missing(weights)) weights <- rep(1, nrow(X))
+    else if (length(weights)!=nrow(X)) stop("expected \"weights\" vector of length ", nrow(X), " = number of observations")
     ## knots=m=0, df=1, == no knots = weibull
     ## choose knot locations by quantiles
     ## inits : m+2 gammas, beta
@@ -52,7 +54,7 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
     ncoveffs <- ncol(X)
     npars <- k + 2 + ncoveffs
     if (is.null(inits)) {
-        inits <- flexsurv.splineinits(Y, X, data, knots, scale)
+        inits <- flexsurv.splineinits(Y, X, data, knots, scale, weights)
     }
     else {
         if (!is.numeric(inits) || length(inits) != k + 2 + ncoveffs)
@@ -68,7 +70,8 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
     }
     if ((is.logical(fixedpars) && fixedpars==TRUE) ||
         (is.numeric(fixedpars) && all(fixedpars == 1:npars))) {
-        minusloglik <- minusloglik.stpm(optpars=inits, knots=knots, Y=Y, X=X, inits=inits,
+        minusloglik <- minusloglik.stpm(optpars=inits, knots=knots, Y=Y, X=X,
+                                        weights=weights, inits=inits,
                                    fixedpars=NULL, scale=scale)
         res <- cbind(est=inits,lcl=NA,ucl=NA)
         ret <- list(call=match.call(), k=k, knots=knots, scale=scale, res=res, npars=0,
@@ -83,7 +86,7 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
             optim.args$method <- "BFGS"
         gr <- if (scale=="normal") NULL else Dminusloglik.stpm
         optim.args <- c(optim.args, list(par=optpars, fn=minusloglik.stpm, gr=gr,
-                                         knots=knots, Y=Y, X=X,
+                                         knots=knots, Y=Y, X=X, weights=weights,
                                          inits=inits, fixedpars=fixedpars,
                                          scale=scale, hessian=TRUE))
         opt <- do.call("optim", optim.args)
@@ -97,6 +100,7 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
         res[setdiff(1:npars, fixedpars),] <- cbind(est, lcl, ucl, se)
         colnames(res) <- c("est", paste(c("L","U"), round(cl*100), "%", sep=""), "se")
         ret <- list(call=match.call(), k=k, knots=knots, scale=scale, res=res, cov=cov,
+                    coefficients=res[,"est"],
                     npars=length(est), fixedpars=fixedpars, optpars=setdiff(1:npars, fixedpars),
                     ncovs=ncovs, ncoveffs=ncoveffs,
                     loglik=-opt$value, AIC=2*opt$value + 2*length(est), cl=cl, opt=opt,
@@ -107,17 +111,19 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, scale="hazard", inits
     ret
 }
 
-flexsurv.splineinits <- function(Y, X, data, knots, scale)
+flexsurv.splineinits <- function(Y, X, data, knots, scale, weights)
 {
-    X <- X[Y[,"status"]==1,,drop=FALSE]
-    Y <- Y[Y[,"status"]==1,,drop=FALSE]
+    dead <- Y[,"status"]==1
+    X <- X[dead,,drop=FALSE]
+    Y <- Y[dead,,drop=FALSE]
+    wt <- weights[dead]
     ## using coxph on original formula followed by survfit.coxph fails
     ## due to scoping
     form <- paste("Surv(Y[,\"time\"], Y[,\"status\"]) ~ ")
     if (ncol(X)>0)
         form <- paste(form, paste(paste("X[,",1:ncol(X),"]",sep=""), collapse=" + "))
     else form <- paste(form, "1")
-    cox <- coxph(as.formula(form))
+    cox <- coxph(as.formula(form), weights=wt)
     surv <- survfit(cox, data=cbind(Y, X))
     surv <- surv$surv[match(Y[,"time"], surv$time)]
     if (scale=="hazard")
@@ -131,11 +137,11 @@ flexsurv.splineinits <- function(Y, X, data, knots, scale)
                   paste(paste("b[,",2:ncol(b),"]",sep=""), collapse=" + "))
     if (ncol(X)>0)
         form <- paste(form, "+", paste(paste("X[,",1:ncol(X),"]",sep=""), collapse=" + "))
-    inits <- coef(lm(as.formula(form)))
+    inits <- coef(lm(as.formula(form), weights=wt))
     inits
 }
 
-minusloglik.stpm <- function(optpars, knots, Y, X=0, inits, fixedpars=NULL, scale="hazard"){
+minusloglik.stpm <- function(optpars, knots, Y, X=0, weights=weights, inits, fixedpars=NULL, scale="hazard"){
     pars <- inits
     npars <- length(pars)
     pars[setdiff(1:npars, fixedpars)] <- optpars
@@ -151,7 +157,7 @@ minusloglik.stpm <- function(optpars, knots, Y, X=0, inits, fixedpars=NULL, scal
     pobs <- 1 - psurvspline(Y[,"start"], gamma, beta, X[,,drop=FALSE], knots, scale) # = 1 unless left-truncated
     ## workaround to avoid warnings, TODO think about implicit parameter constraints instead
     if (any(dens<=0) || any(surv<=0)) return(Inf)
-    - ( sum(log(dens)) + sum(log(surv)) - sum(log(pobs)))
+    - ( sum(log(dens)*weights[dead]) + sum(log(surv)*weights[!dead]) - sum(log(pobs)*weights))
 }
 
 psurvspline <- function(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0){
@@ -170,6 +176,8 @@ dsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", 
     dens <- 1 / x * dbasis(knots, log(x)) %*% gamma * eeta
     as.numeric(dens)
 }
+
+## TODO can ns from splines package be used for these
 
 basis <- function(knots, x) {
     nk <- length(knots)

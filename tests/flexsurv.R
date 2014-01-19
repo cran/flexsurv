@@ -25,13 +25,14 @@ fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian, dist="ge
 fitffix <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf",
                        fixedpars=4, inits=c(NA,NA,NA,1e-05))
 test(fitffix$res[1:3,"est"], fitg$res[1:3,"est"], tol=1e-03)
-test(fitffix$res[1:3,2:3], fitg$res[1:3,2:3], tol=1e-03)
+test(fitffix$res[1:3,2:3], fitg$res[1:3,2:3], tol=1e-02)
+
+wt <- rep(1, nrow(ovarian)) # ; wt[c(1,3,5,7,9)] <- 10
+
 ## Weibull
-fitw <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1,
-                    data = ovarian, dist="weibull")
+fitw <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="weibull", weights=wt)
 ## Weibull with library(survival)
-fitws <- survreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1,
-                 data = ovarian, dist="weibull")
+fitws <- survreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="weibull", weights=wt)
 test(fitw$loglik, fitws$loglik[1], tol=1e-04)
 test(fitws$scale, 1 / fitw$res["shape","est"], tol=1e-03)
 test(as.numeric(coef(fitws)[1]), log(fitw$res["scale","est"]), tol=1e-03)
@@ -204,6 +205,16 @@ fit <- flexsurvreg(Surv(simt, dead) ~ x + x2 + x3, dist="gengamma", control=list
 fit <- flexsurvreg(Surv(simt, dead)[1:100] ~ x[1:100] + x2[1:100], dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000), method="BFGS")
 fit <- flexsurvreg(Surv(simt, dead)[1:100] ~ x[1:100], dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000))
 fit
+
+## Covariates on auxiliary parameters
+set.seed(11082012)
+sim <- rgengamma(500, 1, exp(0.5 + 0.1*x3), -0.4)
+dead <- as.numeric(sim<=30)
+simt <- ifelse(sim<=30, sim, 30)
+fit <- flexsurvreg(Surv(simt, dead) ~ sigma(x3), dist="gengamma", control=list(trace=1,REPORT=1,maxit=10000))
+cl <- confint(fit)
+stopifnot(cl[,1] < c(1, 0.5, -0.4, 0.1)  &  cl[,2] > c(1, 0.5, -0.4, 0.1) )
+
 
 ## Errors
 if (0) {

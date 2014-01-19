@@ -136,7 +136,8 @@ test(fitsp$res["gamma1",1], 1 /fitln$res["sdlog",1], tol=1e-02)
 ## Left-truncation.
 if (0) {
 bc <- bc[bc$recyrs>2,]
-(spl <- flexsurvspline(Surv(recyrs, censrec) ~ 1, data=bc, k=0))
+wt <- rep(1, nrow(bc)); wt[1:30] <- 2
+(spl <- flexsurvspline(Surv(recyrs, censrec) ~ 1, data=bc, k=0, weights=wt,fixedpars=TRUE))
 (spl <- flexsurvspline(Surv(rep(0, nrow(bc)), recyrs, censrec) ~ 1, data=bc, k=0))
 plot(spl)
 spl <- flexsurvspline(Surv(rep(1.9, nrow(bc)), recyrs, censrec) ~ 1, data=bc, k=0)
