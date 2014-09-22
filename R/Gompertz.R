@@ -7,16 +7,8 @@
 ## shape/scale labelled wrong way round.
 
 dgompertz <- function(x, shape, rate=1, log=FALSE) {
-    n <- max(length(x),length(shape),length(rate))
-    x <- rep(x, length=n)
-    shape <- rep(shape, length=n)
-    rate <- rep(rate, length=n)
-    ret <- numeric(n)
-    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ret[!is.nan(ret) & (x<0)] <- if (log) -Inf else 0
-    ind <- !is.nan(ret) & (x>=0)
-    x <- x[ind]; shape <- shape[ind]; rate <- rate[ind]
+    d <- dbase("gompertz", log=log, x=x, shape=shape, rate=rate)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     logdens <- numeric(length(x))
     logdens[shape==0] <- dexp(x[shape==0], rate=rate[shape==0], log=TRUE)
     sn0 <- shape!=0
@@ -29,16 +21,8 @@ dgompertz <- function(x, shape, rate=1, log=FALSE) {
 }
 
 pgompertz <- function(q, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
-    n <- max(length(q),length(shape),length(rate))
-    q <- rep(q, length=n)
-    shape <- rep(shape, length=n)
-    rate <- rep(rate, length=n)
-    ret <- numeric(n)
-    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    q[q<0] <- 0
-    ind <- !is.nan(ret)
-    q <- q[ind]; shape <- shape[ind]; rate <- rate[ind]
+    d <- dbase("gompertz", lower.tail=lower.tail, log=log.p, q=q, shape=shape, rate=rate)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     prob <- numeric(length(q))
     prob[shape==0] <- pexp(q[shape==0], rate=rate[shape==0])
     sn0 <- shape!=0
@@ -53,17 +37,8 @@ pgompertz <- function(q, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
 }
 
 qgompertz <- function(p, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
-    n <- max(length(p),length(shape),length(rate))
-    p <- rep(p, length=n)
-    shape <- rep(shape, length=n)
-    rate <- rep(rate, length=n)
-    ret <- numeric(n)
-    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    if (log.p) p <- exp(p)
-    if (!lower.tail) p <- 1 - p
-    ind <- !is.nan(ret)
-    p <- p[ind]; shape <- shape[ind]; rate <- rate[ind]
+    d <- dbase("gompertz", lower.tail=lower.tail, log=log.p, p=p, shape=shape, rate=rate)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     ret[ind][shape==0] <- qexp(p[shape==0], rate=rate[shape==0])
     sn0 <- shape!=0
     if (any(sn0)) { 
@@ -78,27 +53,30 @@ qgompertz <- function(p, shape, rate=1, lower.tail = TRUE, log.p = FALSE) {
 }
 
 rgompertz <- function(n, shape = 1, rate = 1){
-    if (length(n) > 1) n <- length(n)
-    shape <- rep(shape, length=n)
-    rate <- rep(rate, length=n)
-    ret <- numeric(n)
-    ret[!check.gompertz(shape=shape, rate=rate)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ind <- !is.nan(ret)
-    shape <- shape[ind]; rate <- rate[ind]    
+    r <- rbase("gompertz", n=n, shape=shape, rate=rate)
+    for (i in seq_along(r)) assign(names(r)[i], r[[i]])
     ret[ind] <- qgompertz(p=runif(sum(ind)), shape=shape, rate=rate)
     ret
 }
 
-hgompertz <- function(x, shape, rate=1){
-    rate*exp(shape*x)
+hgompertz <- function(x, shape, rate = 1, log = FALSE) 
+{
+    h <- dbase("gompertz", log=log, x=x, shape=shape, rate=rate)
+    for (i in seq_along(h)) assign(names(h)[i], h[[i]])
+    if (log) 
+        ret[ind] <- log(rate) + (shape * x)
+    else
+        ret[ind] <- rate * exp(shape * x)
+    ret
 }
 
-Hgompertz <- function(x, shape, rate=1){
-    if (shape==0) 
-        rate*x
-    else 
-        rate/shape*expm1(shape*x)
+Hgompertz <- function(x, shape, rate = 1, log = FALSE) 
+{
+    h <- dbase("gompertz", log=log, x=x, shape=shape, rate=rate)
+    for (i in seq_along(h)) assign(names(h)[i], h[[i]])
+    ret[ind] <- ifelse(shape==0, rate*x, rate/shape * expm1(shape*x))
+    if (log) ret[ind] <- log(ret[ind])
+    ret
 }
 
 check.gompertz <- function(shape, rate=1){

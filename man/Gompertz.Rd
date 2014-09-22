@@ -16,8 +16,8 @@ dgompertz(x, shape, rate = 1, log = FALSE)
 pgompertz(q, shape, rate = 1, lower.tail = TRUE, log.p = FALSE)
 qgompertz(p, shape, rate = 1, lower.tail = TRUE, log.p = FALSE)
 rgompertz(n, shape, rate = 1)
-hgompertz(x, shape, rate = 1)
-Hgompertz(x, shape, rate = 1)
+hgompertz(x, shape, rate = 1, log=FALSE)
+Hgompertz(x, shape, rate = 1, log=FALSE)
 }
 \arguments{
   \item{x, q}{vector of quantiles.}

@@ -5,13 +5,16 @@
 \description{
   Plot fitted survival, cumulative hazard or hazard from a parametric
   model against nonparametric estimates to diagnose goodness-of-fit.
+  Alternatively plot a user-defined function of the model parameters
+  against time.
 }
 \usage{
-\method{plot}{flexsurvreg}(x, X=NULL, type="survival", t=NULL, start=NULL,
+\method{plot}{flexsurvreg}(x, newdata=NULL, X=NULL, type="survival",
+        fn=NULL, t=NULL, start=NULL,
         est=TRUE, ci=NULL, B=1000, cl=0.95,
         col.obs="black", lty.obs=1, lwd.obs=1,
         col="red", lty=1, lwd=2,
-        col.ci=NULL, lty.ci=2, lwd.ci=1,
+        col.ci=NULL, lty.ci=2, lwd.ci=1, ylim=NULL,
         add=FALSE,...)
 }
 \arguments{
@@ -19,25 +22,11 @@
   \item{x}{Output from \code{\link{flexsurvreg}} or \code{\link{flexsurvspline}}, representing a fitted
     survival model object.}
 
-  \item{X}{ Matrix of covariate values to produce fitted survival curves
-    for. Columns represent different covariates, and rows represent
-    multiple curves.  For example \code{matrix(c(1,2),nrow=2)} if there
-    is only one covariate in the model, and we want to plot curves for
-    covariate values of 1 and 2.
-
-    For ``factor'' (categorical) covariates, the values of the contrasts
-    representing factor levels (as returned by the
-    \code{\link{contrasts}} function) should be used.  For example, for
-    a covariate \code{agegroup} specified as an unordered factor with
-    levels \code{20-29, 30-39, 40-49, 50-59}, and baseline level
-    \code{20-29}, there are three contrasts.  To plot curves for groups
-    \code{20-29} and \code{40-49}, supply
-    \code{X = rbind(c(0,0,0), c(0,1,0))}, since
-    all contrasts are zero for the baseline level, and
-    the second contrast is ``turned on'' for the third level
-    \code{40-49}.
+  \item{newdata}{Data frame containing covariate values to produce
+    fitted values for.  See \code{\link{summary.flexsurvreg}}.
 
     If there are only factor covariates in the model, then Kaplan-Meier
+    (or nonparametric hazard...)
     curves are plotted for all distinct groups, and by default, fitted
     curves are also plotted for these groups.   To plot Kaplan-Meier and
     fitted curves for only a subset of groups, use \code{plot(survfit())}
@@ -47,7 +36,11 @@
     Kaplan-Meier curve is drawn. By default, a single fitted curve
     is drawn with the covariates set to their mean values in the data -
     for categorical covariates, the means of the 0/1 indicator
-    variables are taken.
+    variables are taken.   
+  }  
+  \item{X}{ Alternative way to supply covariate values, as a model
+    matrix.   See \code{\link{summary.flexsurvreg}}.  \code{newdata} is
+    an easier way. 
   }
   \item{type}{ \code{"survival"} for survival, to be plotted against
     Kaplan-Meier estimates from \code{\link[survival]{plot.survfit}}.
@@ -60,7 +53,17 @@
     estimates tend to be unstable, and these plots are intended just to
     roughly indicate the shape of the hazards through time.  The \code{min.time} and \code{max.time}
     options to \code{\link[muhaz]{muhaz}} may sometimes need to be
-    passed as arguments to \code{\link{plot.flexsurvreg}} to avoid an error here.
+    passed as arguments to \code{\link{plot.flexsurvreg}} to avoid an
+    error here.
+
+    Ignored if \code{"fn"} is specified.
+  }
+  \item{fn}{
+    Custom function of the parameters to summarise against time.  The first two arguments
+    of the function must be \code{t} representing time, and \code{start}
+    representing left-truncation points, and any remaining arguments
+    must be parameters of the distribution.  It
+    should return a vector of the same length as \code{t}.
   }
   \item{t}{ Vector of times to plot fitted values for, see \code{\link{summary.flexsurvreg}}. }
   \item{start}{ Left-truncation points, see \code{\link{summary.flexsurvreg}}. }
@@ -86,7 +89,7 @@
   as for the fitted curve. }
   \item{lty.ci}{ Line type of the fitted confidence limits. }
   \item{lwd.ci}{ Line width of the fitted confidence limits. }
-
+  \item{ylim}{y-axis limits: vector of two elements.}
   \item{add}{If \code{TRUE}, add lines to an existing plot,
     otherwise new axes are drawn.}
 

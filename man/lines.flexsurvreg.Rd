@@ -9,7 +9,7 @@
   Equivalent to \code{\link{plot.flexsurvreg}(...,add=TRUE)}.
 }
 \usage{
-\method{lines}{flexsurvreg}(x, X=NULL, type="survival", t=NULL,
+\method{lines}{flexsurvreg}(x, newdata=NULL, X=NULL, type="survival", t=NULL,
         est=TRUE, ci=NULL, B=1000, cl=0.95,
         col="red", lty=1, lwd=2, col.ci=NULL, lty.ci=2, lwd.ci=1, ...)
 }
@@ -17,8 +17,10 @@
 
   \item{x}{Output from \code{\link{flexsurvreg}}, representing a fitted
     survival model object.}
-  \item{X}{Matrix of covariate values to produce fitted curves
-    for, as described in \code{\link{plot.flexsurvreg}}. }
+  \item{newdata}{Covariate values to produce fitted curves
+    for, as a data frame, as described in \code{\link{plot.flexsurvreg}}. }
+  \item{X}{Covariate values to produce fitted curves
+    for, as a matrix, as described in \code{\link{plot.flexsurvreg}}. }
   \item{type}{ \code{"survival"} for survival,
     \code{"cumhaz"} for cumulative hazard, or \code{"hazard"} for
     hazard, as in \code{\link{plot.flexsurvreg}}.

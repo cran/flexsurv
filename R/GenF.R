@@ -5,18 +5,8 @@
 ## Equation 2 in C.Cox (2008) is wrong, delta*beta*m1 not beta*m1 in first exponent in numerator
 
 dgenf <- function(x, mu=0, sigma=1, Q, P, log=FALSE) {
-    n <- max(length(x),length(mu),length(sigma),length(Q),length(P))
-    x <- rep(x, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    P <- rep(P, length=n)
-    ret <- numeric(n)
-    ret[!check.genf(mu=mu, sigma=sigma, Q=Q, P=P)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ret[!is.nan(ret) & (x<=0)] <- if (log) -Inf else 0
-    ind <- !is.nan(ret) & (x>0)
-    x <- x[ind]; mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]; P <- P[ind]
+    d <- dbase("genf", log=log, x=x, mu=mu, sigma=sigma, Q=Q, P=P)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     logdens <- numeric(length(x))
     logdens[P==0] <- dgengamma(x[P==0], mu[P==0], sigma[P==0], Q[P==0], log=TRUE)
     pn0 <- P!=0
@@ -35,18 +25,8 @@ dgenf <- function(x, mu=0, sigma=1, Q, P, log=FALSE) {
 
 pgenf <- function(q, mu=0, sigma=1, Q, P, lower.tail = TRUE, log.p = FALSE)
 {
-    n <- max(length(q),length(mu),length(sigma),length(Q),length(P))
-    q <- rep(q, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    P <- rep(P, length=n)
-    ret <- numeric(n)
-    ret[!check.genf(mu=mu, sigma=sigma, Q=Q, P=P)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    q[q<0] <- 0
-    ind <- !is.nan(ret)
-    q <- q[ind]; mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]; P <- P[ind]
+    d <- dbase("genf", lower.tail=lower.tail, log=log.p, q=q, mu=mu, sigma=sigma, Q=Q, P=P)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     prob <- numeric(length(q))
     prob[P==0] <- pgengamma(q[P==0], mu[P==0], sigma[P==0], Q[P==0], lower.tail=TRUE, log.p=FALSE)
     pn0 <- P!=0
@@ -78,19 +58,8 @@ hgenf <- function(x, mu=0, sigma=1, Q, P)
 
 qgenf <- function(p, mu=0, sigma=1, Q, P, lower.tail = TRUE, log.p = FALSE)
 {
-    n <- max(length(p),length(mu),length(sigma),length(Q),length(P))
-    p <- rep(p, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    P <- rep(P, length=n)
-    ret <- numeric(n)
-    ret[!check.genf(mu=mu, sigma=sigma, Q=Q, P=P)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    if (log.p) p <- exp(p)
-    if (!lower.tail) p <- 1 - p
-    ind <- !is.nan(ret)
-    p <- p[ind]; mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]; P <- P[ind]
+    d <- dbase("genf", lower.tail=lower.tail, log=log.p, p=p, mu=mu, sigma=sigma, Q=Q, P=P)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     ret[ind][P==0] <- qgengamma(p[P==0], mu[P==0], sigma[P==0], Q[P==0])
     pn0 <- P!=0
     if (any(pn0)) {
@@ -107,16 +76,8 @@ qgenf <- function(p, mu=0, sigma=1, Q, P, lower.tail = TRUE, log.p = FALSE)
 
 rgenf <- function(n, mu=0, sigma=1, Q, P)
 {
-    if (length(n) > 1) n <- length(n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    P <- rep(P, length=n)
-    ret <- numeric(n)
-    ret[!check.genf(mu=mu, sigma=sigma, Q=Q, P=P)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ind <- !is.nan(ret)
-    mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]; P <- P[ind];
+    r <- rbase("genf", n=n, mu=mu, sigma=sigma, Q=Q, P=P)
+    for (i in seq_along(r)) assign(names(r)[i], r[[i]])
     ret[ind][P==0] <- rgengamma(sum(P==0), mu[P==0], sigma[P==0], Q[P==0])
     pn0 <- P!=0
     if (any(pn0)) {
@@ -135,24 +96,14 @@ check.genf <- function(mu, sigma, Q, P){
     ret <- rep(TRUE, length(mu))
     if (missing(Q)) stop("shape parameter \"Q\" not given")
     if (missing(P)) stop("shape parameter \"P\" not given")
-    if (any(sigma <= 0)) {warning("Non-positive scale parameter \"sigma\""); ret[sigma<=0] <- FALSE}
+    if (any(sigma < 0)) {warning("Negative scale parameter \"sigma\""); ret[sigma<0] <- FALSE}
     if (any(P < 0)) {warning("Negative shape parameter \"P\""); ret[P<0] <- FALSE}
     ret
 }
 
 dgenf.orig <- function(x, mu=0, sigma=1, s1, s2, log=FALSE) {
-    n <- max(length(x),length(mu),length(sigma),length(s1),length(s2))
-    x <- rep(x, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    s1 <- rep(s1, length=n)
-    s2 <- rep(s2, length=n)
-    ret <- numeric(n)
-    ret[!check.genf.orig(mu=mu, sigma=sigma, s1=s1, s2=s2)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ret[!is.nan(ret) & (x<=0)] <- if (log) -Inf else 0
-    ind <- !is.nan(ret) & (x>0)
-    x <- x[ind]; mu <- mu[ind]; sigma <- sigma[ind]; s1 <- s1[ind]; s2 <- s2[ind];
+    d <- dbase("genf.orig", log=log, x=x, mu=mu, sigma=sigma, s1=s1, s2=s2)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     w <- (log(x) - mu)/sigma
     expw <- x^(1/sigma)*exp(-mu/sigma)
     logdens <- -log(sigma*x) + s1*(log(s1) + w - log(s2)) - (s1+s2)*log(1 + s1*expw/s2) - lbeta(s1, s2)
@@ -162,18 +113,8 @@ dgenf.orig <- function(x, mu=0, sigma=1, s1, s2, log=FALSE) {
 
 pgenf.orig <- function(q, mu=0, sigma=1, s1, s2, lower.tail = TRUE, log.p = FALSE)
 {
-    n <- max(length(q),length(mu),length(sigma),length(s1),length(s2))
-    q <- rep(q, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    s1 <- rep(s1, length=n)
-    s2 <- rep(s2, length=n)
-    ret <- numeric(n)
-    ret[!check.genf.orig(mu=mu, sigma=sigma, s1=s1, s2=s2)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    q[q<0] <- 0
-    ind <- !is.nan(ret)
-    q <- q[ind]; mu <- mu[ind]; sigma <- sigma[ind]; s1 <- s1[ind]; s2 <- s2[ind]
+    d <- dbase("genf.orig", lower.tail=lower.tail, log=log.p, q=q, mu=mu, sigma=sigma, s1=s1, s2=s2)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     w <- (log(q) - mu)/sigma
     prob <- 1 - pbeta(s2/(s2 + s1*exp(w)), s2, s1)
     if (!lower.tail) prob <- 1 - prob
@@ -195,18 +136,8 @@ hgenf.orig <- function(x, mu=0, sigma=1, s1, s2)
 
 qgenf.orig <- function(p, mu=0, sigma=1, s1, s2, lower.tail = TRUE, log.p = FALSE)
 {
-    n <- max(length(p),length(mu),length(sigma),length(s1),length(s2))
-    p <- rep(p, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    s1 <- rep(s1, length=n)
-    s2 <- rep(s2, length=n)
-    ret <- numeric(n)
-    ret[!check.genf.orig(mu=mu, sigma=sigma, s1=s1, s2=s2)] <- NaN
-    ind <- !is.nan(ret)
-    p <- p[ind]; mu <- mu[ind]; sigma <- sigma[ind]; s1 <- s1[ind]; s2 <- s2[ind]
-    if (log.p) p <- exp(p)
-    if (!lower.tail) p <- 1 - p
+    d <- dbase("genf.orig", lower.tail=lower.tail, log=log.p, p=p, mu=mu, sigma=sigma, s1=s1, s2=s2)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     w <- log(qf(p, 2*s1, 2*s2))
     ret[ind] <- exp(w*sigma + mu)
     ret
@@ -214,16 +145,8 @@ qgenf.orig <- function(p, mu=0, sigma=1, s1, s2, lower.tail = TRUE, log.p = FALS
 
 rgenf.orig <- function(n, mu=0, sigma=1, s1, s2)
 {
-    if (length(n) > 1) n <- length(n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    s1 <- rep(s1, length=n)
-    s2 <- rep(s2, length=n)
-    ret <- numeric(n)
-    ret[!check.genf.orig(mu=mu, sigma=sigma, s1=s1, s2=s2)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ind <- !is.nan(ret)
-    mu <- mu[ind]; sigma <- sigma[ind]; s1 <- s1[ind]; s2 <- s2[ind]
+    r <- rbase("genf.orig", n=n, mu=mu, sigma=sigma, s1=s1, s2=s2)
+    for (i in seq_along(r)) assign(names(r)[i], r[[i]])
     w <- log(rf(n, 2*s1, 2*s2))
     ret[ind] <- exp(w*sigma + mu)
     ret
@@ -233,15 +156,18 @@ check.genf.orig <- function(mu, sigma, s1, s2){
     ret <- rep(TRUE, length(mu))
     if (missing(s1)) stop("shape parameter \"s1\" not given")
     if (missing(s2)) stop("shape parameter \"s2\" not given")
-    if (any(sigma <= 0)) {warning("Non-positive scale parameter \"sigma\""); ret[sigma<=0] <- FALSE}
-    if (any(s1 <= 0)) {warning("Non-positive shape parameter \"s1\""); ret[s1<=0] <- FALSE}
-    if (any(s2 <= 0)) {warning("Non-positive shape parameter \"s2\""); ret[s2<=0] <- FALSE}
+    if (any(sigma < 0)) {warning("Negative scale parameter \"sigma\""); ret[sigma<0] <- FALSE}
+    if (any(s1 < 0)) {warning("Negative shape parameter \"s1\""); ret[s1<0] <- FALSE}
+    if (any(s2 < 0)) {warning("Negative shape parameter \"s2\""); ret[s2<0] <- FALSE}
     ret
 }
 
 ## Thanks to Skif Pankov
 ## currently undocumented and unused!
+## Only defined for s2 > sigma
+## mean for gengamma.orig will follow
+
 mean.genf.orig <- function(mu, sigma, s1, s2){
-    exp(mu) * (s2/s1)^sigma * gamma(s1 + sigma)*gamma(s2 - sigma) / (gamma(s1)*gamma(s2))
+    if (s2 <= sigma) NaN else exp(mu) * (s2/s1)^sigma * gamma(s1 + sigma)*gamma(s2 - sigma) / (gamma(s1)*gamma(s2))
 }
 

@@ -4,21 +4,22 @@
 \alias{flexsurv}
 \docType{package}
 \title{
-flexsurv: Flexible parametric models for time-to-event data
+  flexsurv: Flexible parametric survival and multi-state models
 }
 \description{
   flexsurv: Flexible parametric models for time-to-event data,
   including the generalized gamma, the generalized F and the
-  Royston-Parmar spline model.
+  Royston-Parmar spline model, and extensible to user-defined
+  distributions. 
 }
 \details{
-
   \code{\link{flexsurvreg}} fits parametric models for time-to-event
-  (survival) data.  Data may be right-censored or left-truncated.
+  (survival) data.  Data may be right-censored, and/or left-censored,
+  and/or left-truncated.
   Several built-in parametric distributions are available.  Any
   user-defined parametric model can also be employed by supplying a list
   with basic information about the distribution, including the density
-  and probability functions.
+  or hazard and ideally also the cumulative distribution or hazard.
 
   Covariates can be included using a linear model on any parameter of
   the distribution, log-transformed to the real line if necessary.  This
@@ -27,23 +28,40 @@ flexsurv: Flexible parametric models for time-to-event data
 
   \code{\link{flexsurvspline}} fits the flexible survival model of
   Royston and Parmar (2002) in which the log cumulative hazard is
-  modelled as a natural cubic spline function of log time, including a
-  linear term for covariates.  Alternative proportional odds or probit
+  modelled as a natural cubic spline function of log time.   Covariates
+  can be included on any of the spline parameters, giving either a
+  proportional hazards model or an arbitrarily-flexible time-dependent
+  effect.  Alternative proportional odds or probit
   parameterisations are available.
 
   Output from the models can be presented as survivor, cumulative
   hazard and hazard functions (\code{\link{summary.flexsurvreg}}).
   These can be plotted against nonparametric estimates
   (\code{\link{plot.flexsurvreg}}) to assess goodness-of-fit.
+  Any other user-defined function of the parameters may be summarised in
+  the same way.
 
+  Multi-state models for time-to-event data can also be fitted with the
+  same functions.  Predictions from those models can then be made
+  using the functions \code{\link{pmatrix.fs}},
+  \code{\link{pmatrix.simfs}}, \code{\link{totlos.fs}},
+  \code{\link{totlos.simfs}}, or \code{\link{sim.fmsm}}, or
+  alternatively by \code{\link{msfit.flexsurvreg}} followed by
+  \code{mssample} or \code{probtrans} from the package
+  \pkg{mstate}.
+  
   Distribution (``dpqr'') functions for the generalized gamma and F distributions are
   given in \code{\link{GenGamma}}, \code{\link{GenF}} (preferred
   parameterisations) and \code{\link{GenGamma.orig}},
   \code{\link{GenF.orig}} (original parameterisations).
-
   \code{\link{flexsurv}} also includes the standard Gompertz distribution
   with unrestricted shape parameter, see \code{\link{Gompertz}}.
-
+}
+\section{User guide}{
+  The \bold{flexsurv user guide} vignette explains the methods in
+  detail, and gives several worked examples.  A further vignette
+  \bold{flexsurv-examples} gives a few more complicated examples, and
+  users are encouraged to submit their own.
 }
 \section{Related R packages}{
   \code{\link{flexsurv}} was written to encourage the use of flexible
@@ -72,7 +90,9 @@ flexsurv: Flexible parametric models for time-to-event data
   for a parametric distribution, it can then be used easily in
   \code{\link{flexsurvreg}}.  For instance, several ``reliability''
   distributions used in industrial statistics are available in the
-  \pkg{VGAM} package.  Please report unexplained inconsistencies in
+  \pkg{VGAM} and package, and many other survival distributions
+  are provided in \pkg{ActuDistns}.
+ Please report unexplained inconsistencies in
   results between \pkg{flexsurv} and other software.
 }
 \author{

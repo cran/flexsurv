@@ -1,42 +1,26 @@
 ## Log-gamma or generalized gamma distribution (parameterisation as in Farewell and Prentice, Technometrics 1977)
 
+### FIXME value for x = 0 
+
 dgengamma <- function(x, mu=0, sigma=1, Q, log=FALSE) {
-    n <- max(length(x),length(mu),length(sigma),length(Q))
-    x <- rep(x, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma(mu=mu, sigma=sigma, Q=Q)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ret[!is.nan(ret) & (x<=0)] <- if (log) -Inf else 0
-    ind <- !is.nan(ret) & (x>0)
-    mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]; xx <- x[ind]
-    logdens <- numeric(length(xx))
-    logdens[Q==0] <- dlnorm(xx[Q==0], mu[Q==0], sigma[Q==0], log=TRUE)
+    d <- dbase("gengamma", log=log, x=x, mu=mu, sigma=sigma, Q=Q)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
+    logdens <- numeric(length(x))
+    logdens[Q==0] <- dlnorm(x[Q==0], mu[Q==0], sigma[Q==0], log=TRUE)
     qn0 <- Q!=0
     if (any(qn0)) {
-        xx <- xx[qn0]; mu <- mu[qn0]; sigma <- sigma[qn0]; Q <- Q[qn0]
-        y <- log(xx)
+        x <- x[qn0]; mu <- mu[qn0]; sigma <- sigma[qn0]; Q <- Q[qn0]
+        y <- log(x)
         w <- ((y - mu)/sigma)
-        logdens[qn0] <- -log(sigma*xx) + log(abs(Q)) + (Q^-2)*log(Q^-2) + Q^-2*(Q*w - exp(Q*w)) - lgamma(Q^-2)
+        logdens[qn0] <- -log(sigma*x) + log(abs(Q)) + (Q^-2)*log(Q^-2) + Q^-2*(Q*w - exp(Q*w)) - lgamma(Q^-2)
     }
     ret[ind] <- if (log) logdens else exp(logdens)
     ret
 }
 
 pgengamma <- function(q, mu=0, sigma=1, Q, lower.tail = TRUE, log.p = FALSE) {
-    n <- max(length(q),length(mu),length(sigma),length(Q))
-    q <- rep(q, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma(mu=mu, sigma=sigma, Q=Q)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    q[q<0] <- 0
-    ind <- !is.nan(ret)
-    q <- q[ind]; mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]
+    d <- dbase("gengamma", lower.tail=lower.tail, log=log.p, q=q, mu=mu, sigma=sigma, Q=Q)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     prob <- numeric(length(q))
     prob[Q==0] <- plnorm(q[Q==0], mu[Q==0], sigma[Q==0])
     qn0 <- Q!=0
@@ -66,18 +50,8 @@ hgengamma <- function(x, mu=0, sigma=1, Q)
 
 qgengamma <- function(p, mu=0, sigma=1, Q, lower.tail = TRUE, log.p = FALSE)
 {
-    n <- max(length(p),length(mu),length(sigma),length(Q))
-    p <- rep(p, length=n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma(mu=mu, sigma=sigma, Q=Q)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    if (log.p) p <- exp(p)
-    if (!lower.tail) p <- 1 - p
-    ind <- !is.nan(ret)
-    p <- p[ind]; mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]
+    d <- dbase("gengamma", lower.tail=lower.tail, log=log.p, p=p, mu=mu, sigma=sigma, Q=Q)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     p[Q<0] <- 1 - p[Q<0]
     ret[ind] <- numeric(sum(ind))
     ret[ind][Q==0] <- qlnorm(p[Q==0], mu[Q==0], 1/sigma[Q==0]^2)
@@ -88,16 +62,9 @@ qgengamma <- function(p, mu=0, sigma=1, Q, lower.tail = TRUE, log.p = FALSE)
 }
 
 rgengamma <- function(n, mu=0, sigma=1, Q) {
-    if (length(n) > 1) n <- length(n)
-    mu <- rep(mu, length=n)
-    sigma <- rep(sigma, length=n)
-    Q <- rep(Q, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma(mu=mu, sigma=sigma, Q=Q)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ind <- !is.nan(ret)
-    mu <- mu[ind]; sigma <- sigma[ind]; Q <- Q[ind]
-    ret[ind][Q==0] <- rlnorm(n, mu, 1/sigma^2)
+    r <- rbase("gengamma", n=n, mu=mu, sigma=sigma, Q=Q)
+    for (i in seq_along(r)) assign(names(r)[i], r[[i]])
+    ret[ind][Q==0] <- rlnorm(n, mu, sigma)
     qn0 <- Q!=0
     if (any(qn0)) {
         mu <- mu[qn0]; sigma <- sigma[qn0]; Q <- Q[qn0]
@@ -110,39 +77,25 @@ rgengamma <- function(n, mu=0, sigma=1, Q) {
 check.gengamma <- function(mu, sigma, Q){
     ret <- rep(TRUE, length(mu))
     if (missing(Q)) stop("shape parameter \"Q\" not given")
-    if (any(sigma <= 0)) {warning("Non-positive scale parameter \"sigma\""); ret[sigma<=0] <- FALSE}
+    if (any(sigma < 0)) {  # no warning for sigma 0, since may occur in optimisation. 
+        warning("Negative scale parameter \"sigma\""); ret[sigma<0] <- FALSE
+    }
     ret
 }
 
+### FIXME limiting value for x=0:  0 if bk >1, 1 if b=k=1, ... ? 
+
 dgengamma.orig <- function(x, shape, scale=1, k, log=FALSE){
-    n <- max(length(x),length(shape),length(scale),length(k))
-    x <- rep(x, length=n)
-    shape <- rep(shape, length=n)
-    scale <- rep(scale, length=n)
-    k <- rep(k, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma.orig(shape=shape, scale=scale, k=k)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ret[!is.nan(ret) & (x<=0)] <- if (log) -Inf else 0
-    ind <- !is.nan(ret) & (x>0)
-    x <- x[ind]; shape <- shape[ind]; scale <- scale[ind]; k <- k[ind]
+    d <- dbase("gengamma.orig", log=log, x=x, shape=shape, scale=scale, k=k)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     logdens <- log(shape) - lgamma(k) + (shape*k - 1)*log(x) - shape*k*log(scale) - (x/scale)^shape
     ret[ind] <- if (log) logdens else exp(logdens)
     ret
 }
 
 pgengamma.orig <- function(q, shape, scale=1, k, lower.tail = TRUE, log.p = FALSE) {
-    n <- max(length(q),length(shape),length(scale),length(k))
-    q <- rep(q, length=n)
-    shape <- rep(shape, length=n)
-    scale <- rep(scale, length=n)
-    k <- rep(k, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma.orig(shape=shape, scale=scale, k=k)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    q[q<0] <- 0
-    ind <- !is.nan(ret)
-    q <- q[ind]; shape <- shape[ind]; scale <- scale[ind]; k <- k[ind]
+    d <- dbase("gengamma.orig", lower.tail=lower.tail, log=log.p, q=q, shape=shape, scale=scale, k=k)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     y <- log(q)
     w <- (y - log(scale))*shape
     prob <- pgamma(exp(w), shape=k)
@@ -165,18 +118,8 @@ hgengamma.orig <- function(x, shape, scale=1, k)
 
 qgengamma.orig <- function(p, shape, scale=1, k, lower.tail = TRUE, log.p = FALSE)
 {
-    n <- max(length(p),length(shape),length(scale),length(k))
-    p <- rep(p, length=n)
-    shape <- rep(shape, length=n)
-    scale <- rep(scale, length=n)
-    k <- rep(k, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma.orig(shape=shape, scale=scale, k=k)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ind <- !is.nan(ret)
-    p <- p[ind]; shape <- shape[ind]; scale <- scale[ind]; k <- k[ind]
-    if (log.p) p <- exp(p)
-    if (!lower.tail) p <- 1 - p
+    d <- dbase("gengamma.orig", lower.tail=lower.tail, log=log.p, p=p, shape=shape, scale=scale, k=k)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     w <- log(qgamma(p, shape=k))
     y <- w / shape  + log(scale)
     ret[ind] <- exp(y)
@@ -184,15 +127,8 @@ qgengamma.orig <- function(p, shape, scale=1, k, lower.tail = TRUE, log.p = FALS
 }
 
 rgengamma.orig <- function(n, shape, scale=1, k) {
-    if (length(n) > 1) n <- length(n)
-    shape <- rep(shape, length=n)
-    scale <- rep(scale, length=n)
-    k <- rep(k, length=n)
-    ret <- numeric(n)
-    ret[!check.gengamma.orig(shape=shape, scale=scale, k=k)] <- NaN
-    if (all(is.nan(ret))) return(ret);
-    ind <- !is.nan(ret)
-    shape <- shape[ind]; scale <- scale[ind]; k <- k[ind]
+    r <- rbase("gengamma.orig", n=n, shape=shape, scale=scale, k=k)
+    for (i in seq_along(r)) assign(names(r)[i], r[[i]])
     w <- log(rgamma(n, shape=k))
     y <- w / shape  + log(scale)
     ret[ind] <- exp(y)
@@ -203,8 +139,8 @@ check.gengamma.orig <- function(shape, scale, k){
     ret <- rep(TRUE, length(shape))
     if (missing(shape)) stop("shape parameter \"shape\" not given")
     if (missing(k)) stop("shape parameter \"k\" not given")
-    if (any(shape <= 0)) {warning("Non-positive shape parameter \"shape\""); ret[shape<=0] <- FALSE}
-    if (any(scale <= 0)) {warning("Non-positive scale parameter"); ret[scale<=0] <- FALSE}
-    if (any(k <= 0)) {warning("Non-positive shape parameter \"k\""); ret[k<=0] <- FALSE}
+    if (any(shape < 0)) {warning("Negative shape parameter \"shape\""); ret[shape<0] <- FALSE}
+    if (any(scale < 0)) {warning("Negative scale parameter"); ret[scale<0] <- FALSE}
+    if (any(k < 0)) {warning("Negative shape parameter \"k\""); ret[k<0] <- FALSE}
     ret
 }

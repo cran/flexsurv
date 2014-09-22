@@ -1,21 +1,44 @@
 \name{Survspline}
 \alias{dsurvspline}
 \alias{psurvspline}
+\alias{psurvspline}
+\alias{qsurvspline}
+\alias{rsurvspline}
+\alias{hsurvspline}
+\alias{Hsurvspline}
 \title{Royston/Parmar spline survival distribution}
 \description{
-  Probability density and distribution function for the
-  Royston/Parmar spline model.
+  Probability density, distribution, quantile, hazard and cumulative
+  hazard function for the Royston/Parmar spline model.
 }
 \usage{
-dsurvspline(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0)
-psurvspline(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0)
+dsurvspline(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard",
+            offset=0, log=FALSE)
+psurvspline(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard",
+            offset=0, lower.tail=TRUE, log.p=FALSE)
+qsurvspline(p, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard",
+            offset=0, lower.tail=TRUE, log.p=FALSE)
+rsurvspline(n, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard",
+            offset=0)
+hsurvspline(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard",
+            offset=0)
+Hsurvspline(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard",
+            offset=0)
 }
 \arguments{
   \item{x,q}{Vector of times.}
-  \item{gamma}{Vector of parameters describing the baseline spline
-    function, as described in \code{\link{flexsurvspline}}.}
-  \item{beta}{Vector of covariate effects.}
-  \item{X}{Matrix of covariate values.}
+  \item{p}{Vector of probabilities.}
+  \item{n}{Number of random numbers to simulate.}
+  \item{gamma}{Parameters describing the baseline spline
+    function, as described in \code{\link{flexsurvspline}}. 
+    This may be supplied as a vector with number of elements
+    equal to the length of \code{knots}, in which case the parameters
+    are common to all times.   Alternatively a matrix may be supplied,
+    with rows corresponding to different times, and columns
+    corresponding to \code{knots}.
+  }
+  \item{beta}{Vector of covariate effects (deprecated).}
+  \item{X}{Matrix of covariate values (deprecated).}
   \item{knots}{Locations of knots on the axis of log time, supplied in
     increasing order.  Unlike in \code{\link{flexsurvspline}}, these
     include the two boundary knots.  If there are
@@ -24,16 +47,31 @@ psurvspline(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0)
     or beyond the minimum and maximum values of the log times. 
     In \code{\link{flexsurvspline}} these are exactly at the minimum
     and maximum values.
+
+    This may in principle be supplied as a matrix, in the same way as
+    for \code{gamma}, but in most applications the knots will be fixed. 
   }
   \item{scale}{\code{"hazard"}, \code{"odds"}, or \code{"normal"}, as
     described in \code{\link{flexsurvspline}}.  With the default of
     no knots in addition to the boundaries, this model reduces to the
-    Weibull, log-logistic and log-normal respectively.}
+    Weibull, log-logistic and log-normal respectively.   The scale must be
+    common to all times. }
   \item{offset}{An extra constant to add to the linear predictor \eqn{\eta}{eta}.}
+  \item{log,log.p}{Return log density or probability.}
+  \item{lower.tail}{logical; if TRUE (default), probabilities are
+    \eqn{P(X \le x)}{P(X <= x)}, otherwise, \eqn{P(X > x)}{P(X > x)}.}
 }
 \value{
-\code{dsurvspline} gives the density and \code{psurvspline} gives the distribution
-function, as described in \code{\link{flexsurvspline}}.
+\code{dsurvspline} gives the density, \code{psurvspline} gives the distribution
+function, \code{hsurvspline} gives the hazard and \code{Hsurvspline}
+gives the cumulative hazard, as described in \code{\link{flexsurvspline}}.
+
+\code{qsurvspline} gives the quantile function, which is computed by crude
+numerical inversion (using \code{\link{qgeneric}}).
+
+\code{rsurvspline} generates random survival times by using
+\code{qsurvspline} on a sample of uniform random numbers.   Due to the
+numerical root-finding involved in \code{qsurvspline}, it is slow compared to typical random number generation functions. 
 }
 \references{
   Royston, P. and Parmar, M. (2002).  Flexible parametric

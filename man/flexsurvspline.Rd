@@ -8,8 +8,8 @@
   model of Royston and Parmar (2002).
 }
 \usage{
-flexsurvspline(formula, data, k=0, knots=NULL, scale="hazard", weights,
-               subset, na.action, inits=NULL, fixedpars=NULL, cl=0.95,...)
+flexsurvspline(formula, data, k=0, knots=NULL, bknots=NULL,
+               scale="hazard", ...)
 }
 \arguments{
   \item{formula}{
@@ -20,10 +20,34 @@ flexsurvspline(formula, data, k=0, knots=NULL, scale="hazard", weights,
 
     \code{Surv(time, dead) ~ age + sex}
 
+    specifies a model where the log cumulative hazard (by default, see \code{scale}) is a
+    linear function of the covariates \code{age} and \code{sex}.
+    
     If there are no covariates, specify \code{1} on the right hand side,
-    for example \code{Surv(time, dead) ~ 1}.  Only \code{Surv} objects
-    of \code{type="right"} or \code{type="counting"}, corresponding to
-    right-censored and/or left-truncated observations, are supported.
+    for example \code{Surv(time, dead) ~ 1}.
+
+    Time-varying covariate effects can be specified using the method
+    described in \code{\link{flexsurvreg}} for placing covariates on
+    ancillary parameters.   The ancillary parameters here
+    are named \code{gamma1}, \ldots, \code{gammar} where \code{r} is the
+    number of knots \code{k} plus one (the ``degrees of freedom'' as
+    defined by Royston and Parmar).  So for the default Weibull model,
+    there is just one ancillary parameter \code{gamma1}.
+
+    Therefore a model with one internal spline knot, where the
+    equivalents of the Weibull shape and scale parameters, but not the
+    higher-order term \code{gamma2}, vary with age and sex, can be
+    specified as:
+    
+    \code{Surv(time, dead) ~ age + sex + gamma1(age) + gamma1(sex)}
+
+    or alternatively (and more safely, see \code{flexsurvreg})
+    
+    \code{Surv(time, dead) ~ age + sex, anc=list(gamma1=~age + sex)}
+
+    \code{Surv} objects of \code{type="right"},\code{"counting"},
+    \code{"interval1"} or \code{"interval2"} are supported, corresponding to
+    right-censored, left-truncated or interval-censored observations.
   }
   \item{data}{
     A data frame in which to find variables supplied in \code{formula}.
@@ -45,6 +69,11 @@ flexsurvspline(formula, data, k=0, knots=NULL, scale="hazard", weights,
     Either \code{k} or \code{knots} must be
     specified. If both are specified, \code{knots} overrides \code{k}.
   }
+  \item{bknots}{
+    Locations of boundary knots, on the axis of log time.   If not
+    supplied, these are are chosen as the minimum and maximum log
+    death time.    
+    }
   \item{scale}{
     If \code{"hazard"}, the log cumulative hazard is modelled as a spline
     function of log time.
@@ -56,41 +85,18 @@ flexsurvspline(formula, data, k=0, knots=NULL, scale="hazard", weights,
     function of log time, where \eqn{\Phi^{-1}()}{InvPhi()} is the
     inverse normal distribution function \code{\link{qnorm}}.
   }
-  \item{weights}{
-    Optional vector of case weights.
-  }
-  \item{subset}{
-    Vector of integer or logicals specifying the subset of the
-    observations to be used in the fit.
-  }
-  \item{na.action}{a missing-data filter function, applied after any
-    'subset' argument has been used. Default is 'options()$na.action'.
-  }
-  \item{inits}{
-    A numeric vector giving initial values for each unknown parameter.
-    If not specified, default initial values are chosen by estimating
-    the baseline survival at each observed death time from the
-    equivalent Cox model,
-    transforming to the log cumulative hazard \eqn{\log(H)}{log(H)} (or
-    equivalent under the odds or normal models) then
-    performing a linear regression of \eqn{\log(H)}{log(H)} on the
-    spline basis and covariates.
-  }
-  \item{fixedpars}{Vector of indices of parameters whose values will be
-    fixed at their initial values during optimisation.  The indices
-    are ordered with the intercept \code{"gamma0"} first, then the remaining spline
-    coefficients \code{"gamma1","gamma2"...} followed by covariate effects.
-  }
-  \item{cl}{
-    Width of symmetric confidence intervals for maximum
-    likelihood estimates, by default 0.95.
-  }
   \item{...}{
-    Optional arguments to the general-purpose \R
-    optimisation routine \code{\link{optim}}. See
-    \code{\link{flexsurvreg}} for examples.  }
+    Any other arguments to be passed to or through
+    \code{\link{flexsurvreg}}, for example, \code{anc}, \code{inits},
+    \code{fixedpars}, \code{weights}, \code{subset}, \code{na.action}, and
+    any options to control optimisation.  See
+    \code{\link{flexsurvreg}}.  }
 }
 \details{
+  This function works as a wrapper around \code{\link{flexsurvreg}} by
+  dynamically constructing a custom distribution using
+  \code{\link{dsurvspline}}, \code{\link{psurvspline}} and \code{\link{unroll.function}}.
+  
   In the spline-based survival model of Royston and Parmar (2002),
   a transformation \eqn{g(S(t,z))} of the survival function is modelled
   as a natural cubic spline function of log time \eqn{x = \log(t)}{x = log(t)}
@@ -116,6 +122,16 @@ flexsurvspline(formula, data, k=0, knots=NULL, scale="hazard", weights,
     models are equivalent to Weibull, log-logistic and lognormal models
     respectively.
 
+    The spline coefficients \eqn{\gamma_j: j=1, 2 \ldots }{gamma_j: j=1, 2
+      \ldots}, which are called the "ancillary parameters" above,
+    may also be modelled as linear functions of covariates
+    \eqn{\mathbf{z}}, as
+
+    \deqn{\gamma_j(\mathbf{z}) = \gamma_{j0} + \gamma_{j1}z_1 + \gamma_{j2}z_2 + ... }{gamma_j(z) = \gamma_{j0} + \gamma_{j1}z_1 + \gamma_{j2}z_2 + ... }
+
+    giving a model where the effects of covariates are arbitrarily flexible
+    functions of time: a non-proportional hazards or odds model.
+
     Natural cubic splines are cubic splines constrained to be linear beyond boundary
     knots \eqn{k_{min},k_{max}}{kmin,kmax}.  The spline function is
     defined as
@@ -131,18 +147,15 @@ flexsurvspline(formula, data, k=0, knots=NULL, scale="hazard", weights,
 \deqn{\lambda_j = \frac{k_{max} - k_j}{k_{max} - k_{min}}}{\lambda_j = (kmax - kj) / (kmax - kmin)}
 
 and \eqn{(x - a)_+ = max(0, x - a)}.
-
-  Parameters \eqn{\bm{\gamma},\bm{\beta}}{gamma,beta} are estimated by maximum likelihood
-  using the algorithms available in the standard R
-  \code{\link{optim}} function.  Confidence intervals are estimated from
-  the Hessian at the maximum.  }
+}
 \value{
-  A list of class \code{"flexsurvreg"} with the following elements.
+  A list of class \code{"flexsurvreg"} with the same elements as
+  described in \code{\link{flexsurvreg}}, and including extra components
+  describing the spline model.  See in particular:
 
-  \item{call}{A copy of the function call,
-    for use in post-processing.}
   \item{k}{Number of knots.}
   \item{knots}{Location of knots on the log time axis.}
+  \item{scale}{The \code{scale} of the model, hazard, odds or normal.}
   \item{res}{Matrix of maximum likelihood estimates and confidence
   limits.  Spline coefficients are labelled \code{"gamma..."}, and covariate
   effects are labelled with the names of the covariates.
@@ -154,7 +167,7 @@ and \eqn{(x - a)_+ = max(0, x - a)}.
     is performed on the spline basis here.
 
     In the Weibull model, for example, \code{gamma0,gamma1} are
-    \code{-shape log(scale), shape} respectively in
+    \code{-shape*log(scale), shape} respectively in
     \code{\link{dweibull}} or \code{\link{flexsurvreg}} notation, or
     (\code{-Intercept/scale}, \code{1/scale}) in \code{\link[survival]{survreg}}
     notation.
@@ -172,9 +185,6 @@ and \eqn{(x - a)_+ = max(0, x - a)}.
     differ from Stata, where the sum of the log uncensored survival
     times is added to the log-likelihood in survival models, to remove
     dependency on the time scale.}
-
-  \item{AIC}{Akaike's information criterion (-2*log likelihood + 2*number of
-    estimated parameters)}
 }
 \references{
   Royston, P. and Parmar, M. (2002).  Flexible parametric
@@ -187,17 +197,13 @@ and \eqn{(x - a)_+ = max(0, x - a)}.
 }
 \seealso{
   \code{\link{flexsurvreg}} for flexible survival modelling using
-  fully parametric distributions including the generalized F and gamma.
+  general parametric distributions.
 
   \code{\link{plot.flexsurvreg}} and \code{\link{lines.flexsurvreg}} to
   plot fitted survival, hazards and cumulative hazards from models fitted
   by \code{\link{flexsurvspline}} and \code{\link{flexsurvreg}}.
-
 }
 \examples{
-data(bc)
-bc$recyrs <- bc$rectime/365
-
 ## Best-fitting model to breast cancer data from Royston and Parmar (2002)
 ## One internal knot (2 df) and cumulative odds scale
 spl <- flexsurvspline(Surv(recyrs, censrec) ~ group, data=bc, k=1, scale="odds")
