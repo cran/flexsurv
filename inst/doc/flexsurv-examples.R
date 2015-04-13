@@ -73,3 +73,51 @@ legend("topright", lwd=c(2,2), col=c("red","darkgray"), bty="n",
        c("Generalized gamma: standard AFT", "Generalized gamma: proportional hazards"))
 
 
+###################################################
+### code chunk number 3: flexsurv-examples.Rnw:150-157
+###################################################
+mean.gengamma <- function(mu, sigma, Q, horizon=100, ...){
+    surv <- function(t, ...) {  1 - pgengamma(q=t, mu=mu, sigma=sigma, Q=Q, ...) }
+    integrate(surv, 0, horizon, ...)$value
+}
+summary(fs2, newdata=list(group="Good"), t=1, fn=mean.gengamma)
+summary(fs2, newdata=list(group="Medium"), t=1, fn=mean.gengamma)
+summary(fs2, newdata=list(group="Poor"), t=1, fn=mean.gengamma)
+
+
+###################################################
+### code chunk number 4: flexsurv-examples.Rnw:160-164
+###################################################
+median.gengamma <- function(mu, sigma, Q) { 
+    qgengamma(0.5, mu=mu, sigma=sigma, Q=Q) 
+}
+summary(fs2, newdata=list(group="Good"), t=1, fn=median.gengamma)
+
+
+###################################################
+### code chunk number 5: flexsurv-examples.Rnw:184-196
+###################################################
+library(TH.data)
+GBSG2 <- transform(GBSG2,
+                   X1a=(age/50)^-2,
+                   X1b=(age/50)^-0.5,
+                   X4=tgrade %in% c("II","III"),
+                   X5=exp(-0.12*pnodes),
+                   X6=(progrec+1)^0.5
+                   )
+(progc <- coxph(Surv(time, cens) ~ horTh + X1a + X1b + X4 + 
+                  X5 + X6, data=GBSG2))
+(prog3 <- flexsurvspline(Surv(time, cens) ~ horTh + X1a + X1b + X4 + 
+                           X5 + X6, k=3, data=GBSG2))
+
+
+###################################################
+### code chunk number 6: flexsurv-examples.Rnw:201-206
+###################################################
+predc <- predict(progc, type="lp")
+progc <- cut(predc, quantile(predc, 0:3/3))
+predf <- model.matrix(prog3) %*% prog3$res[-(1:5),"est"]
+progf <- cut(predf, quantile(predf, 0:3/3))
+table(progc, progf)
+
+

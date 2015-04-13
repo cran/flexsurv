@@ -19,7 +19,11 @@
     this should be semi-Markov,  so that the time variable represents
     the time since the last transition.  In other words the response should
     be of the form \code{Surv(time,status)}. See the package vignette for further
-    explanation. 
+    explanation.
+
+    \code{x} can also be a list of models, with one component for each
+    permitted transition, as illustrated in
+    \code{\link{msfit.flexsurvreg}}.    
   }
   \item{trans}{Matrix indicating allowed transitions.  See
     \code{\link{msfit.flexsurvreg}}.}
@@ -37,7 +41,8 @@
     The simulation over \code{M} is generally vectorised, therefore
     increasing \code{B} is usually more expensive than increasing \code{M}.
   }
-  \item{tvar}{Variable in the data representing the transition type.}
+  \item{tvar}{Variable in the data representing the transition type. Not
+    required if \code{x} is a list of models. }
   \item{tcovs}{Predictable time-dependent covariates such as age, see \code{\link{sim.fmsm}}.}
   \item{M}{Number of individuals to simulate in order to approximate the
     transition probabilities.  Users should adjust this to obtain the

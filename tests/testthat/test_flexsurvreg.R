@@ -2,10 +2,13 @@ context("flexsurvreg model fits")
 
 test_that("Generalized F (p parameter) not identifiable from ovarian data",{
 expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf"), "non-finite finite-difference")
+expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf.orig"), "non-finite finite-difference")
 })
 
 test_that("Generalized gamma fit",{
     fitg <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, dist="gengamma")
+    print(fitg)
+    print(fitg, digits=4)
     fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian, dist="gengamma")
     ovarian2 <- ovarian
     fitg <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian2, dist="gengamma")
@@ -43,7 +46,7 @@ test_that("Weighted fits",{
     wt[c(1,3,5,7,9)] <- 10
     fitw <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="weibull", weights=wt)
     fitws <- survreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="weibull", weights=wt)
-    expect_equal(logLik(fitws),logLik(fitw),tol=1e-06)
+    expect_equal(fitws$loglik[2],fitw$loglik,tol=1e-06)
 })
 
 test_that("subset",{
@@ -70,6 +73,12 @@ test_that("Log-normal",{
 test_that("Gompertz",{
     fitgo <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian, dist="gompertz", fixedpars=TRUE) # model fit is unstable
     expect_equal(fitgo$loglik, -112.8294446076947, tol=1e-06)
+})
+
+test_that("Log-logistic",{
+    fitlls <- survreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ age, data = ovarian, dist="loglogistic")
+    fitll <- flexsurvreg(formula = Surv(futime, fustat) ~ age, data = ovarian, dist="llogis")
+    expect_equal(fitll$loglik, fitlls$loglik[2], tol=1e-06)
 })
 
 test_that("Gamma",{
@@ -140,6 +149,10 @@ test_that("Model fit with covariates",{
         lines.flexsurvreg(fitg, X=rbind(c(1.1), c(1.2)), ci=TRUE, col="blue")
         plot.flexsurvreg(fitg, type="hazard")
         plot.flexsurvreg(fitg, type="cumhaz")
+
+        fitg1 <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="weibull")
+        plot.flexsurvreg(fitg1, type="hazard")
+
     }
 })
 
@@ -155,6 +168,20 @@ test_that("Summary function: alternative ways to supply covariates",{
                       summary(fitg2, X=c(0,1))[[1]][1:2])
 })
 
+test_that("summary with CIs",{
+    summ <- summary(fitg, newdata=data.frame(rx=1), B=2, type="survival")
+    print(summ)
+    expect_true(all(unlist(summ[[1]][,2:4]) <= 1))
+    expect_true(all(unlist(summ[[1]][,2:4]) >= 0))
+})
+
+test_that("Errors in summary function",{
+    expect_error(summary(fitg, newdata=list(foo=1)), "Value of covariate \"rx\" not supplied")
+    expect_error(summary(fitg, X=matrix(c(0,1),ncol=2), ci=FALSE), "expected X to be a matrix with 1 column or a vector with 1 element")
+    expect_error(summary(fitg, X=matrix(c(0,1),ncol=1), start=1:2, ci=FALSE), "length of \"start\"")
+    expect_error(summary(fitg, start=1:2, ci=FALSE), "length of \"start\"")
+})
+
 test_that("Model fit with covariates and simulated data",{
     x <- rnorm(500,0,1)
     sim <- rgenf(500, 1.5 - 0.2*x, 1, -0.4, 0.6)
@@ -167,7 +194,6 @@ test_that("Model fit with covariates and simulated data",{
         plot.flexsurvreg(fit)
         lines.flexsurvreg(fit, X=matrix(c(1,2),nrow=2))
         plot(fit)
-        fit
         plot(fit, type="hazard", min.time=0, max.time=25)
         lines(fit, type="hazard", X=matrix(c(1,2),nrow=2))
         x2 <- factor(rbinom(500, 1, 0.5))
@@ -179,6 +205,8 @@ test_that("Model fit with covariates and simulated data",{
         fit <- flexsurvreg(Surv(simt, dead) ~ x2 + x3, dist="genf", control=list(maxit=10000))
         fit <- flexsurvreg(Surv(simt, dead) ~ x2, dist="genf", control=list(maxit=10000))
         plot(fit)
+        summary(fit, type="hazard", ci=FALSE)
+        plot(fit, type="hazard", ci=FALSE)
     }
     x2 <- factor(rbinom(500, 1, 0.5))
     x3 <- rnorm(500,0,1)
@@ -223,7 +251,14 @@ test_that("Covariates on ancillary parameters",{
 })
 
 test_that("Various errors",{
+    expect_error(flexsurvreg(data = ovarian, dist="genf", inits = c(1,2,3)),"\"formula\" is missing")
+    expect_error(flexsurvreg(formula="foo", data = ovarian, dist="genf", inits = c(1,2,3)),"\"formula\" must be a formula")
+    expect_error(flexsurvreg(formula= futime ~ fustat, data = ovarian, dist="genf", inits = c(1,2,3)),"Response must be a survival object")
+    expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, inits = c(1,2,3)),"Distribution \"dist\" not specified")
+    expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, dist=1, data = ovarian, inits = c(1,2,3)),"\"dist\" should be a")
+    expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, dist="gengamma", data = ovarian, anc=1, inits = c(1,2,3)),"\"anc\" must be a")
     expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf", inits = c(1,2,3)),"Initial values .+ length")
+    expect_warning(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf", inits = c(1,2,3,4,5), fixedpars=TRUE),"Initial values are a vector length .+ using only the first")
     expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf", inits = "foo"),"init.+ must be a numeric vector")
     suppressWarnings({
         expect_error(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ 1, data = ovarian, dist="genf", inits = c(1,2,3,-1)),"Initial value for parameter 4 out of range")
@@ -306,6 +341,8 @@ test_that("Interval censoring",{
     fs2 <- flexsurvreg(Surv(simt, status) ~ 1, dist="weibull")
     expect_true(fs1$loglik != fs2$loglik)
 
+    ### FIXME n events wrong for interval2. 
+    
     ## using type="interval"
     status[status==0] <- 3
     fs3 <- flexsurvreg(Surv(tmin, tmax, status, type="interval") ~ 1, dist="weibull")
@@ -372,4 +409,10 @@ test_that("Relative survival", {
     ## stgenreg, loghazard([ln_lambda] :+ [ln_gamma] :+ (exp([ln_gamma]) :- 1) :* log(#t)) nodes(100) ln_lambda(group2 group3) bhazard(bh)
 ### don't know what scale Stata returns the loglik on
 
+})
+
+test_that("warning with strata", { 
+    ## need double backslash to escape $
+    expect_warning(flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ strata(ovarian$resid.ds), dist="gengamma", inits=c(6,1,-1,0)),
+                   "Ignoring \"strata\" function: interpreting \"ovarian\\$resid.ds\" as a covariate on \"mu\"")
 })

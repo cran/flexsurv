@@ -24,6 +24,21 @@ sr.weib.inits <- function(t,aux){
     }
 }
 
+sr.weibPH.inits <- function(aux){
+    if (aux$counting){
+        lt <- log(t[t>0])
+        shape <- 1.64/var(lt)
+        scale <- exp(mean(lt)+0.572)
+        c(shape, scale^{-shape})
+    } else {
+        aux$formula <- aux$forms[[1]]
+        aux$forms <- NULL
+        aux$dist <- "weibull"
+        sr <- do.call(survreg, aux)
+        sr2fswei(sr, ph=TRUE)
+    }
+}
+
 sr.exp.inits <- function(t,aux){
     if (aux$counting){
         1 / mean(t)
@@ -49,7 +64,23 @@ sr.ln.inits <- function(t,aux){
     }
 }
 
-## Convert parameters of a survreg Weibull model to flexsurvreg built-in Weibull initial values
+sr.llog.inits <- function(t,aux){
+    if (aux$counting){
+        scale <- median(t)
+        shape <- 1 / log(quantile(t, 0.25)/scale, base=3)
+        if (shape < 0) shape <- 1
+        c(shape, scale)
+    } else {
+        aux$formula <- aux$forms[[1]]
+        aux$forms <- NULL
+        aux$dist <- "lognormal"
+        sr <- do.call(survreg, aux)
+        sr2fsllog(sr)
+    }
+}
+
+## Convert parameters of survreg models to flexsurvreg
+## parameterisation, for use as initial values
 
 sr2fswei <- function(sr, ph=FALSE){
     scale <- exp(coef(sr)[1])
@@ -60,17 +91,24 @@ sr2fswei <- function(sr, ph=FALSE){
     else c(shape, scale, beta.scale, beta.shape)
 }
 
-sr2fsexp <- function(sr, ph=FALSE){
+sr2fsexp <- function(sr){
     rate <- exp(-coef(sr)[1])
     beta <- -coef(sr)[-1]
     c(rate, beta)
 }
 
-sr2fsln <- function(sr, ph=FALSE){
+sr2fsln <- function(sr){
     meanlog <- coef(sr)[1]
     sdlog <- sr$scale
     beta <- coef(sr)[-1]
     c(meanlog, sdlog, beta)
+}
+
+sr2fsllog <- function(sr){
+    shape <- 1/sr$scale
+    scale <- exp(coef(sr)[1])
+    beta <- coef(sr)[-1]
+    c(shape, scale, beta)
 }
 
 flexsurv.dists <- list(
@@ -131,6 +169,14 @@ flexsurv.dists <- list(
                        inv.transforms=c(exp, exp),
                        inits=sr.weib.inits
                        ),
+                       weibullPH = list(
+                       name="weibullPH", 
+                       pars=c("shape","scale"),
+                       location="scale",
+                       transforms=c(log, log),
+                       inv.transforms=c(exp, exp),
+                       inits = sr.weibPH.inits
+                       ),
                        lnorm = list(
                        name="lnorm",
                        pars=c("meanlog","sdlog"),
@@ -157,6 +203,14 @@ flexsurv.dists <- list(
                        transforms=c(identity, log),
                        inv.transforms=c(identity, exp),
                        inits=function(t){c(0.001,1 / mean(t))}
+                       ),
+                       llogis = list(
+                       name="llogis",
+                       pars=c("shape","scale"),
+                       location="scale",
+                       transforms=c(log, log),
+                       inv.transforms=c(exp, exp),
+                       inits=sr.llog.inits
                        )
                        )
 flexsurv.dists$exponential <- flexsurv.dists$exp
@@ -192,6 +246,7 @@ minusloglik.flexsurv <- function(optpars, Y, X=0, weights, bhazard, dlist, inits
     dead <- Y[,"status"]==1
     logdens <- (do.call(dfns$d, dcall))
     pmax <- (do.call(dfns$p, pmaxcall))
+    pmax[pmaxcall$q==Inf] <- 1  # in case user-defined function doesn't already do this
     pmin <- (do.call(dfns$p, pcall))
     pobs <- 1 - do.call(dfns$p, tcall) # prob of being observed = 1 unless left-truncated
     
@@ -200,7 +255,6 @@ minusloglik.flexsurv <- function(optpars, Y, X=0, weights, bhazard, dlist, inits
         loghaz <- logdens - log(pmax - pmin)
         offset <- sum(log(1 + bhazard / exp(loghaz)*weights)[dead])
     } else offset <- 0
-    
     ret <- - ( sum((logdens*weights)[dead]) +
               sum((log(pmax - pmin)*weights)[!dead]) -
               sum(log(pobs)*weights) + offset)
@@ -214,8 +268,13 @@ check.dlist <- function(dlist){
     if (is.null(dlist$pars)) stop("parameter names \"pars\" not given in custom distribution list")
     if (!is.character(dlist$pars)) stop("parameter names \"pars\" should be a character vector")
     npars <- length(dlist$pars)
-    if (is.null(dlist$location)) stop("location parameter not given in custom distribution list")
-    if (!(dlist$location %in% dlist$pars)) stop("location parameter \"",dlist$location,"\" not in list of parameters")
+    if (is.null(dlist$location)) {
+        warning("location parameter not given, assuming it is the first one")
+        dlist$location <- dlist$pars[1]
+    }
+    if (!(dlist$location %in% dlist$pars)) {
+        stop(sprintf("location parameter \"%s\" not in list of parameters", dlist$location))
+    }
     if (is.null(dlist$transforms)) stop("transforms not given in custom distribution list")
     if (is.null(dlist$inv.transforms)) stop("inverse transforms not given in custom distribution list")
     if (!is.list(dlist$transforms)) stop("\"transforms\" must be a list of functions")
@@ -223,7 +282,7 @@ check.dlist <- function(dlist){
     if (!all(sapply(dlist$transforms, is.function))) stop("some of \"transforms\" are not functions")
     if (!all(sapply(dlist$inv.transforms, is.function))) stop("some of \"inv.transforms\" are not functions")
     if (length(dlist$transforms) != npars) stop("transforms vector of length ",length(dlist$transforms),", parameter names of length ",npars)
-    if (length(dlist$inv.transforms) != npars) stop("inverse transforms vector of length ",length(dlist$transforms),", parameter names of length ",npars) #
+    if (length(dlist$inv.transforms) != npars) stop("inverse transforms vector of length ",length(dlist$inv.transforms),", parameter names of length ",npars) #
     for (i in 1:npars){
         if (is.character(dlist$transforms[[i]])) dlist$transforms[[i]] <- get(dlist$transforms[[i]])
         if (is.character(dlist$inv.transforms[[i]])) dlist$inv.transforms[[i]] <- get(dlist$inv.transforms[[i]])
@@ -515,7 +574,7 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, subset, na.ac
     ret <- c(list(call=call, dlist=dlist, aux=aux,
                   AIC=-2*ret$loglik + 2*ret$npars,
                   data = dat, datameans = colMeans(X),
-                  N=nrow(dat$Y), events=sum(dat$Y[,"status"]), trisk=sum(dat$Y[,"time"]),
+                  N=nrow(dat$Y), events=sum(dat$Y[,"status"]==1), trisk=sum(dat$Y[,"time"]),
                   concat.formula=f2, all.formulae=forms, dfns=dfns),             
              ret)
     if (isTRUE(getOption("flexsurv.test.analytic.derivatives"))
@@ -532,7 +591,9 @@ print.flexsurvreg <- function(x, ...)
     covmeans <- colMeans(model.matrix(x))
     covs <- names(covmeans)
     covinds <- match(covs, rownames(x$res))
-    cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
+    cat("Call:\n")
+    dput(x$call)
+    cat("\n")
     if (x$npars > 0) {
         res <- x$res
         cat ("Estimates: \n")
@@ -545,7 +606,10 @@ print.flexsurvreg <- function(x, ...)
             res <- cbind(means, res, ecoefs)
             colnames(res)[1] <- "data mean"
         }
-        print(format(res, digits=3), print.gap=2, quote=FALSE, na.print="")
+        args <- list(...)
+        if (is.null(args$digits)) args$digits <- 3
+        f <- do.call("format", c(list(x=res), args))
+        print(f, print.gap=2, quote=FALSE, na.print="")
     }
     cat("\nN = ", x$N, ",  Events: ", x$events,
         ",  Censored: ", x$N - x$events,
@@ -558,10 +622,16 @@ form.model.matrix <- function(object, newdata){
     mfo <- model.frame(object)
     covnames <- attr(mfo, "covnames")
     missing.covs <- unique(covnames[!covnames %in% names(newdata)])
-    if (length(missing.covs)>0){
+    if (length(missing.covs) > 0){
         missing.covs <- sprintf("\"%s\"", missing.covs)
         plural <- if (length(missing.covs)>1) "s" else ""
         stop(sprintf("Value%s of covariate%s ",plural,plural), paste(missing.covs, collapse=", "), " not supplied in \"newdata\"")
+    }
+    extra.covs <- unique(names(newdata)[!names(newdata) %in% covnames])
+    if (length(extra.covs) > 0) {
+        warning("Covariates ", paste(paste("\"", extra.covs, "\"", sep=""), collapse=","), " unknown, ignoring")
+        newdata <- newdata[!names(newdata) %in% extra.covs]
+        if (ncol(newdata)==0) return(as.matrix(0, nrow=1))
     }
     ## don't insist on user defining factors in model as factors in newdata, do this for them
     facs <- sapply(mfo, is.factor)
@@ -574,7 +644,11 @@ form.model.matrix <- function(object, newdata){
     temp[["data"]] <- newdata
     mf <- eval(temp, parent.frame())
     facs <- names(mf)[sapply(mf, is.factor)]
-    for (i in facs) mf[,i] <- factor(mf[,i], levels=levels(mfo[,i]))
+    for (i in facs) {
+        unknown.levels <- levels(mf[,i])[!levels(mf[,i]) %in% levels(mfo[,i])]
+        if (length(unknown.levels) > 0) warning("Unknown levels \"", paste(unknown.levels, collapse=","), "\" for factor \"", i, "\"")
+        mf[,i] <- factor(mf[,i], levels=levels(mfo[,i]))
+     }
     forms <- object$all.formulae
     mml <- vector(mode="list", length=length(object$dlist$pars))
     names(mml) <- names(forms)
@@ -613,7 +687,7 @@ summary.flexsurvreg <- function(object, newdata=NULL, X=NULL, type="survival", f
         else if (is.null(X)) X <- as.matrix(0, nrow=1, ncol=max(x$ncoveffs,1))
         else if (!is.matrix(X) || (is.matrix(X) && ncol(X) != x$ncoveffs)) {
             plural <- if (x$ncoveffs > 1) "s" else ""
-            stop("expected X to be a matrix with ", x$ncoveffs, " column", plural, " or a vector with ", x$ncoveffs, " elements")
+            stop("expected X to be a matrix with ", x$ncoveffs, " column", plural, " or a vector with ", x$ncoveffs, " element", plural)
         }
     } else
         X <- form.model.matrix(object, as.data.frame(newdata))
@@ -622,7 +696,7 @@ summary.flexsurvreg <- function(object, newdata=NULL, X=NULL, type="survival", f
     if (length(start)==1)
         start <- rep(start, length(t))
     else if (length(start) != length(t))
-        stop("length of \"start\" is ",length(start)," should be 1, or length of \"t\" which is ",length(t))
+        stop("length of \"start\" is ",length(start),". Should be 1, or length of \"t\" which is ",length(t))
 
     if (is.null(fn)) {
         fn <- summary.fns(x, type)
@@ -631,6 +705,7 @@ summary.flexsurvreg <- function(object, newdata=NULL, X=NULL, type="survival", f
     fncall <- list(t,start)
     beta <- if (x$ncovs==0) 0 else x$res[x$covpars,"est"]
     if (ncol(X) != length(beta)){
+        ## don't think we should ever reach here - error should be caught in newdata or X
         isare <- if(length(beta)==1) "is" else "are"
         plural <- if(ncol(X)==1) "" else "s"
         pluralc <- if(length(beta)==1) "" else "s"
@@ -716,7 +791,7 @@ normboot.flexsurvreg <- function(x, B, newdata=NULL, X=NULL, transform=FALSE, ra
             if (is.null(newdata)) stop("neither \"newdata\" nor \"X\" supplied")
             X <- form.model.matrix(x, as.data.frame(newdata))
         }
-    }
+    } else X <- as.matrix(0, nrow=1, ncol=1)
     sim <- matrix(nrow=B, ncol=nrow(x$res))
     colnames(sim) <- rownames(x$res)
     if (is.na(x$cov[1])) stop("Covariance matrix not available from non-converged model")
@@ -742,6 +817,7 @@ normboot.flexsurvreg <- function(x, B, newdata=NULL, X=NULL, transform=FALSE, ra
             }
         }
     }
+    attr(res, "X") <- X
     res
 }
 
@@ -750,7 +826,8 @@ normboot.flexsurvreg <- function(x, B, newdata=NULL, X=NULL, transform=FALSE, ra
 ### assumed MVN distribution of MLEs.
 
 normbootfn.flexsurvreg <- function(x, t, start, newdata=NULL, X=NULL, fn, B){
-    sim <- normboot.flexsurvreg(x, B, X=X)
+    sim <- normboot.flexsurvreg(x, B, newdata=newdata, X=X)
+    X <- attr(sim, "X")
     if (!is.list(sim)) sim <- list(sim)
     ret <- array(NA_real_, dim=c(nrow(X), B, length(t)))
     for (k in 1:nrow(X)){
@@ -812,6 +889,8 @@ plot.flexsurvreg <- function(x, newdata=NULL, X=NULL, type="survival", fn=NULL, 
         }
         else if (type=="hazard") {
             muhaz.args <- list(...)[names(list(...)) %in% names(formals(muhaz))]
+            if (is.null(muhaz.args$min.time)) muhaz.args$min.time <- 0
+            if (is.null(muhaz.args$max.time)) muhaz.args$max.time <- with(as.data.frame(dat$Y), max(time[status==1]))
             plot.args <- list(...)[!names(list(...)) %in% names(formals(muhaz))]
             if (!all(dat$Y[,"start"]==0)) warning("Left-truncated data not supported by muhaz: ignoring truncation point when plotting observed hazard")
             if (any(dat$Y[,"status"] > 1)) stop("Interval-censored data not supported by muhaz")
@@ -821,11 +900,12 @@ plot.flexsurvreg <- function(x, newdata=NULL, X=NULL, type="survival", fn=NULL, 
             }
             else {
                 ## plot hazard for all groups defined by unique combinations of covariates
-                group <- if(x$ncovs>0) do.call("interaction", mm) else factor(rep(1,nrow(dat$Y)))
+                ## TODO TEST THIS 
+                group <- if(x$ncovs>0) do.call("interaction", mm) else factor(rep(0,nrow(dat$Y)))
+                Xgroup <- factor(do.call("interaction", as.data.frame(X)), levels=levels(group))
                 haz <- list()
                 for (i in 1:nrow(X)) {
-                    subset <- (group == unique(group)[i])
-                    haz[[i]] <- do.call("muhaz", c(list(times=dat$Y[,"time"], delta=dat$Y[,"status"], subset=subset), muhaz.args))
+                    haz[[i]] <- do.call("muhaz", c(list(times=dat$Y[,"time"], delta=dat$Y[,"status"], subset=(group==Xgroup[i])), muhaz.args))
                 }
                 if (missing(ylim))
                     ylim <- range(sapply(haz, function(x)range(x$haz.est)))

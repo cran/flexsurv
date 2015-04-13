@@ -1,5 +1,42 @@
 -*- text -*-
 
+Version 0.6 (2015-04-13) 
+-----------
+
+* CRAN release.  Also includes the changes from Version 0.5.1. 
+
+* Full support for multi-state models fitted as a list of
+  independent transition-specific models.
+
+* New function pars.fmsm to return transition-specific parameters in
+  multi-state models.
+
+* Bug fix for empirical hazard plots with categorical covariates.
+  Thanks to Milan Bouchet-Valat.
+
+
+Version 0.5.1 (2015-02-24)
+-------------
+
+* github-only release.
+
+* Log-logistic distribution built in to flexsurvreg, and distribution
+  functions provided.
+
+* Bug fix in tcovs option in semi-Markov model simulation.
+
+* "digits" argument supported by default model print function.  This
+  is passed to "format" to format the parameter estimates, and
+  defaults to 3.
+
+* Bug fix in "events" printed output for interval censored
+  data. Thanks to Sabrina Russo.
+
+* pgompertz returns Inf for q=Inf, even for parameters denoting
+  "living forever", since the CDF is P(X <= q) not P(X < q).  This
+  affected some fits of the Gompertz distribution.
+
+
 Version 0.5 (2014-09-22)
 -----------
 
@@ -36,8 +73,8 @@ Other new modelling features:
 * Several utilities for parametric multi-state modelling, including
   transition probabilities and simulation ("pmatrix.fs", "totlos.fs",
   "sim.fmsm","pmatrix.simfs", "totlos.simfs").  An "msfit.flexsurvreg"
-  method also gives cumulative incidences in the format of the
-  "mstate" package.
+  method also gives cumulative transition-specific hazards in the
+  format of the "mstate" package.
 
 * Interval censoring supported in the Surv() response.
 

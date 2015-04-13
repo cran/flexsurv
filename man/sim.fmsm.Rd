@@ -11,14 +11,23 @@ sim.fmsm(x, trans, t, newdata=NULL, start=1, M=10, tvar="trans",
 }
 \arguments{
   \item{x}{A model fitted with \code{\link{flexsurvreg}}. See
-\code{\link{msfit.flexsurvreg}} for the required form of the model and the data.}
+\code{\link{msfit.flexsurvreg}} for the required form of the model and
+the data.
+
+Alternatively \code{x} can be a list of fitted \code{\link{flexsurvreg}}
+model objects.  The \code{i}th element of this list is the model
+corresponding to the \code{i}th transition in \code{trans}.  This is a
+more efficient way to fit a multi-state model, but only valid if the
+parameters are different between different transitions.
+}
   \item{trans}{Matrix indicating allowed transitions.  See \code{\link{msfit.flexsurvreg}}.}
   \item{t}{Time, or vector of times for each of the \code{M} individuals, to simulate trajectories until.}
   \item{newdata}{A data frame specifying the values of covariates in the
     fitted model, other than the transition number.  See \code{\link{msfit.flexsurvreg}}.}
   \item{start}{Starting state, or vector of starting states for each of the \code{M} individuals.}
   \item{M}{Number of individual trajectories to simulate.}
-  \item{tvar}{Variable in the data representing the transition type.}
+  \item{tvar}{Variable in the data representing the transition type. Not
+    required if \code{x} is a list of models. }
   \item{tcovs}{Names of "predictable" time-dependent covariates in
     \code{newdata}, i.e. those whose values change at the
     same rate as time.  Age is a typical example.  During simulation, their
@@ -55,6 +64,10 @@ This function is only valid for semi-Markov ("clock-reset") models,
 though no warning or error is currently given if the model is not of
 this type. An equivalent for time-inhomogeneous Markov ("clock-forward")
 models has currently not been implemented.
+
+Note the random sampling method for \code{flexsurvspline} models is
+currently very inefficient, so that looping over the \code{M}
+individuals will be very slow.
 }
 \seealso{
 \code{\link{pmatrix.simfs}},\code{\link{totlos.simfs}}

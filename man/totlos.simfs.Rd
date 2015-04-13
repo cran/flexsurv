@@ -20,6 +20,10 @@
     the time since the last transition.  In other words the response should
     be of the form \code{Surv(time,status)}. See the package vignette for further
     explanation. 
+
+    \code{x} can also be a list of models, with one component for each
+    permitted transition, as illustrated in
+    \code{\link{msfit.flexsurvreg}}.    
   }
   \item{trans}{Matrix indicating allowed transitions.  See
     \code{\link{msfit.flexsurvreg}}.}
@@ -37,8 +41,9 @@
     The simulation over \code{M} is generally vectorised, therefore
     increasing \code{B} is usually more expensive than increasing \code{M}.
   }
-  \item{tvar}{Variable in the data representing the transition type.}
-  \item{tcovs}{Predictable time-dependent covariates such as age, see \code{\link{sim.fmsm}}}.
+  \item{tvar}{Variable in the data representing the transition type. Not
+    required if \code{x} is a list of models. }
+  \item{tcovs}{Predictable time-dependent covariates such as age, see \code{\link{sim.fmsm}}.}
   \item{group}{Optional grouping for the states.  For example, if there
     are four states, and \code{group=c(1,1,2,2)}, then
     \code{\link{totlos.simfs}} returns the expected total time in

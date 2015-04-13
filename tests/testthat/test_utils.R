@@ -7,6 +7,8 @@ tol <- 1e-06
 test_that("Generalized F",{
     expect_equal(dgenf(c(-1,1,2,3,4), mu=0, sigma=1, Q=0, P=1), # FIXME add limiting value for x=0
          c(0, 0.353553390593274, 0.140288989252053, 0.067923038519582, 0.038247711235678), tol=tol)
+    expect_error(Hgenf(c(-1,1,2,3,4), mu=0, sigma=1, P=1), "argument \"Q\" is missing")
+    expect_error(Hgenf(c(-1,1,2,3,4), mu=0, sigma=1, Q=1), "argument \"P\" is missing")
 })
 
 test_that("Generalized F reduces to generalized gamma: d",{
@@ -27,10 +29,8 @@ s1 <- 2 / (Q^2 + 2*P + Q*delta); s2 <- 2 / (Q^2 + 2*P - Q*delta)
 
 test_that("Generalized F reduces to log logistic",{
     if (is.element("eha", installed.packages()[,1])) {
-        library(eha)
         expect_equal(dgenf(x, mu=mu, sigma=sigma, Q=Q, P=P),
-             dllogis(x, shape=sqrt(2)/sigma, scale=exp(mu)))
-        detach("package:eha")
+                     dllogis(x, shape=sqrt(2)/sigma, scale=exp(mu)), tol=tol)
     }
 })
 
@@ -159,7 +159,9 @@ test_that("Generalized F (original)",{
          c(0,0,0,1,2,3,4))
     x <- c(0.1, 0.4, 0.7); mu <- 0.1; sigma <- 1.2; s1 <- 1.7; s2 <- 10000000
     qgenf.orig(x, mu=mu, sigma=sigma, s1=s1, s2=s2)
+    hgenf.orig(x, mu=mu, sigma=sigma, s1=s1, s2=s2)
     qgengamma.orig(x, shape=1/sigma, scale=exp(mu) / s1^sigma, k=s1) # equal for large s2
+    expect_error(Hgenf.orig(x, mu=mu, sigma=sigma, s1=s1), "argument \"s2\" is missing")
 
     rgenf.orig(n=10, mu=0, sigma=1, s1=1, s2=1)
     if (interactive())  {
@@ -226,7 +228,7 @@ test_that("Errors in generalized gamma and F",{
     expect_warning(rgenf(4, 1, -2, 1, 1), "Negative")
 })
 
-## TODO test haz and cum haz functions
+## test haz and cum haz functions
 x <- seq(0.1, 100, by=0.1)
 if (interactive())
     plot(x, hgengamma.orig(x, 1, 1, 1), type="l")
@@ -251,6 +253,7 @@ test_that("pgompertz",{
     expect_equal(pgompertz(x, shape=0, rate=0.2), pexp(x, rate=0.2))
     p <- numeric(6); for (i in 1:6) p[i] <- pgompertz(x[i], shape=-0.0001, rate=i/5)
     expect_equal(p, pgompertz(x, shape=-0.0001, rate=1:6/5))
+    expect_equal(p, 1 - exp(-Hgompertz(x, shape=-0.0001, rate=1:6/5)))
 })
 
 test_that("qgompertz",{
@@ -291,7 +294,7 @@ test_that("Gompertz with chance of living forever",{
     x <- c(0.8, 0.9, 0.97, 0.99)
     expect_equal(qgompertz(x, shape=shape, rate=rate), c(1.28150707286845, 2.4316450975351, Inf, Inf))
                                         # qgeneric(pgompertz, p=x, shape=shape, rate=rate) # won't work - needs smoothness
-    expect_equal(pgompertz(Inf, shape=shape, rate=rate), 0.950212931632136)
+    expect_equal(pgompertz(Inf, shape=shape, rate=rate), 1)
 })
 
 test_that("Spline distribution functions",{
@@ -317,7 +320,7 @@ test_that("Spline distribution functions",{
     d2 <- dsurvspline(1, gamma=gamma)
     expect_equal(d1, d2)
 
-    d1 <- eha::dllogis(1, shape=gamma[2], scale= exp(-gamma[1]/gamma[2]))
+    d1 <- dllogis(1, shape=gamma[2], scale= exp(-gamma[1]/gamma[2]))
     d2 <- dsurvspline(1, gamma=gamma, scale="odds")
     expect_equal(d1, d2)
 
@@ -409,4 +412,27 @@ test_that("Generalized gamma definition in Stata manual",{
         Sgg(c(1,2,3),c(-1,2,0.2),c(1,2,1),c(-1, 0, 1)),
         pgengamma(c(1,2,3),c(-1,2,0.2),c(1,2,1),c(-1, 0, 1), lower.tail=FALSE)
         )
+})
+
+test_that("llogis",{
+    x <- c(0.1, 0.2, 0.7)
+    expect_equal(dllogis(x, shape=0.1, scale=0.2), eha::dllogis(x, shape=0.1, scale=0.2))
+    expect_equal(qllogis(x, shape=0.1, scale=0.2), qgeneric(pllogis, p=x, shape=0.1, scale=0.2))
+    expect_equal(x, pllogis(qllogis(x, shape=0.1, scale=0.2), shape=0.1, scale=0.2))
+    expect_equal(x, 1 - exp(-Hllogis(qllogis(x, shape=0.1, scale=0.2), shape=0.1, scale=0.2)))
+    expect_equal(hllogis(x, shape=0.1, scale=0.2),  dllogis(x, shape=0.1, scale=0.2) / (1 - pllogis(x, shape=0.1, scale=0.2)))
+    q <- numeric(3); for (i in 1:3) q[i] <- qllogis(x[i], shape=0.0001, scale=i/5)
+    expect_equal(q, qllogis(x, shape=0.0001, scale=1:3/5))
+    x <- c(0.5, 1.06, 4.7)
+    expect_equal(x, qllogis(pllogis(x, shape=0.1, scale=0.2), shape=0.1, scale=0.2))
+    if (interactive()) {
+        rl <- rllogis(10000, shape=1.5, scale=1.2)
+        plot(density(rl[rl<100]), xlim=c(0,10))
+        x <- seq(0, 10, by=0.001)
+        lines(x, dllogis(x, shape=1.5, scale=1.2), lty=2)
+    }
+    expect_equal(mean.llogis(shape=0.1, scale=0.2), NaN)
+    expect_equal(var.llogis(shape=1.1, scale=0.2), NaN)
+    mean.llogis(shape=1.1, scale=0.2)
+    var.llogis(shape=2.1, scale=0.2)
 })
