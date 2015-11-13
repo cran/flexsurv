@@ -49,24 +49,38 @@ ldlink <- function(scale){
 
 ## probability density function.
 
-dsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0, log=FALSE){
+dsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, log=FALSE){
     d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]]); x <- q
-    eta <- rowSums(basis(knots, log(x)) * gamma) + as.numeric(X %*% beta) + offset # log cumulative hazard/odds
-    eeta <- exp(ldlink(scale)(eta))
-    ret[ind][eeta==0] <- 0
-    ret[ind][is.nan(eeta)] <- NaN
-    ind2 <- !(eeta==0 || is.nan(eeta))
-    x <- x[ind2]; gamma <- gamma[ind2,,drop=FALSE]; eeta <- eeta[ind2]
-    ind <- ind & ind2
-    dsum <- rowSums(dbasis(knots, log(x)) * gamma)  # ds/dx
-    ret[ind] <- 1 / x * dsum * eeta
-    ## derivative of log cum haz cannot be negative by definition, but
-    ## optimisation doesn't constrain gamma to respect this, so set
-    ## likelihood to zero then (assuming at least one death)
-    ret[ind][ret[ind]<=0] <- 0
+    if (any(ind)){
+        eta <- rowSums(basis(knots, tsfn(x, timescale)) * gamma) + as.numeric(X %*% beta) + offset # log cumulative hazard/odds
+        eeta <- exp(ldlink(scale)(eta))
+        ret[ind][eeta==0] <- 0
+        ret[ind][is.nan(eeta)] <- NaN
+        ind2 <- !(eeta==0 || is.nan(eeta))
+        x <- x[ind2]; gamma <- gamma[ind2,,drop=FALSE]; eeta <- eeta[ind2]
+        ind <- ind & ind2
+        dsum <- rowSums(dbasis(knots, tsfn(x, timescale)) * gamma)  # ds/dx
+        ret[ind] <- dtsfn(x,timescale) * dsum * eeta
+        ## derivative of log cum haz cannot be negative by definition, but
+        ## optimisation doesn't constrain gamma to respect this, so set
+        ## likelihood to zero then (assuming at least one death)
+        ret[ind][ret[ind]<=0] <- 0
+    }
     if (log) {ret <- log(ret)}
     as.numeric(ret)
+}
+
+tsfn <- function(x, timescale){
+    switch(timescale,
+           log = log(x),
+           identity = x)
+}
+
+dtsfn <- function(x, timescale){
+    switch(timescale,
+           log = 1/x,
+           identity = 1)
 }
 
 Slink <- function(scale){
@@ -79,31 +93,33 @@ Slink <- function(scale){
 
 ## cumulative distribution function
 
-psurvspline <- function(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0, lower.tail=TRUE, log.p=FALSE){
+psurvspline <- function(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, lower.tail=TRUE, log.p=FALSE){
     d <- dbase.survspline(q=q, gamma=gamma, knots=knots, scale=scale)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]])
-    eta <- rowSums(basis(knots, log(q)) * gamma) + as.numeric(X %*% beta) + offset
-    surv <- Slink(scale)(eta)
-    ret[ind] <- as.numeric(1 - surv)
-    ret[ind][q==0] <- 0
-    ret[ind][q==Inf] <- 1
+    if (any(ind)){
+        eta <- rowSums(basis(knots, tsfn(q,timescale)) * gamma) + as.numeric(X %*% beta) + offset
+        surv <- Slink(scale)(eta)
+        ret[ind] <- as.numeric(1 - surv)
+        ret[ind][q==0] <- 0
+        ret[ind][q==Inf] <- 1
+    }
     if (!lower.tail) ret <- 1 - ret
     if (log.p) ret <- log(ret)
     ret
 }
 
-qsurvspline <- function(p, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0, lower.tail=TRUE, log.p=FALSE){
+qsurvspline <- function(p, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, lower.tail=TRUE, log.p=FALSE){
     if (log.p) p <- exp(p)
     if (!lower.tail) p <- 1 - p
-    qgeneric(psurvspline, p=p, gamma=gamma, beta=beta, X=X, knots=knots, scale=scale, offset=offset)
+    qgeneric(psurvspline, p=p, gamma=gamma, beta=beta, X=X, knots=knots, scale=scale, timescale=timescale, offset=offset)
 }
 
-rsurvspline <- function(n, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0){
+rsurvspline <- function(n, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
     if (length(n) > 1) n <- length(n)
-    ret <- qsurvspline(p=runif(n), gamma=gamma, beta=beta, X=X, knots=knots, scale=scale, offset=offset)
+    ret <- qsurvspline(p=runif(n), gamma=gamma, beta=beta, X=X, knots=knots, scale=scale, timescale=timescale, offset=offset)
     ret
 }
-   
+  
 
 Hlink <- function(scale){
     switch(scale,
@@ -115,11 +131,15 @@ Hlink <- function(scale){
 
 ## cumulative hazard function
 
-Hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0){
-# TODO error handling etc
+Hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
     match.arg(scale, c("hazard","odds","normal"))
-    eta <- basis(knots, log(x)) %*% gamma + as.numeric(X %*% beta) + offset
-    as.numeric(Hlink(scale)(eta))
+    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
+    if (any(ind)){
+        eta <- rowSums(basis(knots, tsfn(q,timescale)) * gamma) + as.numeric(X %*% beta) + offset
+        ret[ind] <- as.numeric(Hlink(scale)(eta))
+    }
+    ret
 }
 
 hlink <- function(scale){
@@ -132,13 +152,17 @@ hlink <- function(scale){
 
 ## hazard function
 
-hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", offset=0){
-# TODO error handling etc
+hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
+## value for x=0?  currently zero, should it be limit as x reduces to 0? 
     match.arg(scale, c("hazard","odds","normal"))
-    eta <- basis(knots, log(x)) %*% gamma + as.numeric(X %*% beta) + offset
-    eeta <- hlink(scale)(eta)
-    haz <- 1 / x * dbasis(knots, log(x)) %*% gamma * eeta
-    as.numeric(haz)
+    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale)
+    for (i in seq_along(d)) assign(names(d)[i], d[[i]])
+    if (any(ind)){
+        eta <- rowSums(basis(knots, tsfn(q,timescale)) * gamma) + as.numeric(X %*% beta) + offset
+        eeta <- hlink(scale)(eta)
+        ret[ind] <- dtsfn(x, timescale) * rowSums(dbasis(knots, tsfn(x, timescale)) * gamma) * eeta
+    }
+    as.numeric(ret)
 }
 
 basis <- function(knots, x) {
@@ -252,54 +276,113 @@ unroll.function <- function(mat.fn, ...){
 flexsurv.splineinits <- function(t=NULL, mf, mml, aux)
 {
     Y <- check.flexsurv.response(model.extract(mf, "response"))
-    weights <- model.extract(mf, "weights")
-    dead <- Y[,"status"]==1
-    X <- mml[[1]][dead,-1,drop=FALSE]
-    Y <- Y[dead,,drop=FALSE]
-    wt <- weights[dead]
-    ## using coxph on original formula followed by survfit.coxph fails
-    ## due to scoping
-    form <- paste("Surv(Y[,\"start\"], Y[,\"stop\"], Y[,\"status\"]) ~ ")
-    if (ncol(X)>0)
-        form <- paste(form, paste(paste("X[,",1:ncol(X),"]",sep=""), collapse=" + "))
-    else form <- paste(form, "1")
 
-    cox <- coxph(as.formula(form), weights=wt)
-    surv <- survfit(cox, data=cbind(Y, X))
-    surv <- surv$surv[match(Y[,"stop"], surv$time)]
+    ## Impute interval-censored data, where Cox doesn't work.
+    intcens <- Y[,"status"]==3 & (Y[,"start"] < Y[,"stop"])
+    Y[intcens,"status"] <- 1
+    Y[intcens,"stop"] <- Y[intcens,"start"] + (Y[intcens,"stop"] - Y[intcens,"start"])/2  
+    Y[,"status"] <- ifelse(Y[,"status"]==1, 1, 0)
+    X <- mml[[1]][,-1,drop=FALSE]
+   
+    ## Use only uncensored observations, unless < 5 of those, in which
+    ## case use all (coxph doesn't work if all censored). Impute as
+    ## alternative?
+    dead <- Y[,"status"]==1
+    inc <- if (sum(dead) >= 5) dead else rep(TRUE, nrow(Y))
+    inc <- inc & Y[,"start"] < Y[,"stop"]
+   
+    ## Estimate empirical cumulative hazard for each observation 
+    formdat <- as.data.frame(cbind(Y, X, weights=model.extract(mf, "weights")))
+    names(formdat)[1:ncol(Y)] <- colnames(Y)
+    form <- c("Surv(start, stop, status) ~")
+    if (ncol(X)>0){
+        names(formdat)[ncol(Y) + 1:ncol(X)] <- paste0("X", 1:ncol(X))
+        form <- paste(form, paste(paste0("X", 1:ncol(X)), collapse=" + "))
+    }
+    else form <- paste(form, "1")
+    formdat <- formdat[inc,]
+    cox <- coxph(as.formula(form), weights=weights, data=formdat)
+    
+    if (ncol(X)>0){
+        newdata <- as.data.frame(matrix(rep(0, ncol(X)), nrow=1))
+        names(newdata) <- paste0("X", 1:ncol(X))
+        surv <- survfit(cox, newdata=newdata)
+    } else surv <- survfit(cox)
+    surv <- surv$surv[match(Y[inc,"stop"], surv$time)]
+    surv <- surv^exp(cox$linear.predictors)
     if (aux$scale=="hazard")
         logH <- log(-log(surv))
     else if (aux$scale=="odds")
         logH <- log((1 - surv)/surv)
     else if (aux$scale=="normal")
         logH <- qnorm(1 - surv)
-    b <- if (!is.null(aux$knots)) basis(aux$knots, log(Y[,"time"])) else cbind(1, log(Y[,"time"]))
-    form <- paste("logH ~ ",
-                  paste(paste("b[,",2:ncol(b),"]",sep=""), collapse=" + "))
-    if (ncol(X)>0)
-        form <- paste(form, "+", paste(paste("X[,",1:ncol(X),"]",sep=""), collapse=" + "))
-    ## include interactions between covs and spline basis
+    x <- tsfn(Y[inc,"time"], aux$timescale)
+    b <- if (!is.null(aux$knots)) basis(aux$knots, x) else cbind(1, x)
+    
+    ## Regress empirical logH on covariates and spline basis to obtain
+    ## initial values.
+    ## Constrain initial spline function to be increasing, using
+    ## quadratic programming
+    Xq <- cbind(b, X[inc,,drop=FALSE])
+    kx <- x
+    kr <- diff(range(x))
+    kx[1] <- x[1] - 0.01*kr
+    kx[length(kx)] <- x[length(kx)] + 0.01*kr
+    db <- if (!is.null(aux$knots)) dbasis(aux$knots, kx) else cbind(0, kx)
+    dXq <- cbind(db, matrix(0, nrow=nrow(db), ncol=ncol(X)))
     nints <- length(mml)-1
-    inter <- lapply(mml[-1], function(x)NULL)
-    for (i in seq_along(inter)){
-        Xi <- mml[[i+1]][dead,-1,drop=FALSE]
-        ncovsi <- if (is.null(Xi)) 0 else ncol(Xi)
-        nam <- paste0("X",i)
-        assign(nam, Xi)
-        inter[[i]] <- if (ncovsi==0) NULL else paste0("b[,",i+1,"]:", paste0(nam,"[,",seq_len(ncovsi),"]"))
+    for (i in seq_len(nints)){
+        Xi <- mml[[i+1]][inc,-1,drop=FALSE]
+        Xq <- cbind(Xq, Xi*b[,i+1])
+        dXq <- cbind(dXq, Xi*db[,i+1])
     }
-    inter <- paste(unlist(inter), collapse=" + ")
-    if (inter != "") form <- paste(form, inter, sep="+")
-    inits <- coef(lm(as.formula(form), weights=wt))
+    y <- logH[is.finite(logH)]
+    Xq <- Xq[is.finite(logH),,drop=FALSE]
+    dXq <- dXq[is.finite(logH),,drop=FALSE]
+    eps <- rep(1e-09, length(y)) # so spline is strictly increasing
+
+    inits <- solve.QP(Dmat=t(Xq) %*% Xq, dvec=t(t(y) %*% Xq), Amat=t(dXq), bvec=eps)$solution
     inits
 }
 
-flexsurvspline <- function(formula, data, k=0, knots=NULL, bknots=NULL, scale="hazard", ...){
+## Initialise coefficients on spline intercepts (standard hazard
+## ratios in PH models) using standard Cox regression, in cases where
+## the default inits routine above results in parameters that give a
+## zero likelihood, e.g. GBSG2 example
+
+flexsurv.splineinits.cox <- function(t=NULL, mf, mml, aux)
+{
+    inits <- flexsurv.splineinits(t=t, mf=mf, mml=mml, aux=aux)
+    Y <- check.flexsurv.response(model.extract(mf, "response"))
+    ## Impute interval-censored data, where Cox doesn't work.
+    intcens <- Y[,"status"]==3 & (Y[,"start"] < Y[,"stop"])
+    Y[intcens,"status"] <- 1
+    Y[intcens,"stop"] <- Y[intcens,"start"] + (Y[intcens,"stop"] - Y[intcens,"start"])/2  
+    Y[,"status"] <- ifelse(Y[,"status"]==1, 1, 0)
+    inc <- Y[,"start"] < Y[,"stop"]   
+    X <- mml[[1]][,-1,drop=FALSE]
+    formdat <- as.data.frame(cbind(Y, X, weights=model.extract(mf, "weights")))
+    names(formdat)[1:ncol(Y)] <- colnames(Y)
+    form <- c("Surv(start, stop, status) ~")
+    if (ncol(X)>0){
+        names(formdat)[ncol(Y) + 1:ncol(X)] <- paste0("X", 1:ncol(X))
+        form <- paste(form, paste(paste0("X", 1:ncol(X)), collapse=" + "))
+        formdat <- formdat[inc,]
+        cox <- coxph(as.formula(form), weights=weights, data=formdat)
+        covinds <- length(aux$knots) + 1:ncol(X)
+        inits[covinds] <- coef(cox)
+    }
+    inits
+}
+
+flexsurvspline <- function(formula, data, weights, bhazard, subset,
+                           k=0, knots=NULL, bknots=NULL, scale="hazard", timescale="log", ...){
     ## Get response matrix from the formula.  Only need this to obtain
     ## default knots.  Largely copied from flexsurvreg - ideally
-    ## should be in separate function, but can't make scoping work.   
+    ## should be in separate function, but can't make scoping work.
+
     call <- match.call()
-    indx <- match(c("formula", "data", "weights", "subset", "na.action"), names(call), nomatch = 0)
+    indx <- match(c("formula", "data", "weights", "bhazard", "subset", "na.action"), names(call), nomatch = 0)
     if (indx[1] == 0)
         stop("A \"formula\" argument is required")
     temp <- call[c(1, indx)]
@@ -309,6 +392,7 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, bknots=NULL, scale="h
     environment(f2) <- environment(formula)
     temp[["formula"]] <- f2
     if (missing(data)) temp[["data"]] <- environment(formula)
+    if (missing(data)) data <- environment(formula) # TESTME to pass to flexsurvreg
     m <- eval(temp, parent.frame())
     Y <- check.flexsurv.response(model.extract(m, "response"))
     
@@ -319,25 +403,25 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, bknots=NULL, scale="h
         if (is.null(k)) stop("either \"knots\" or \"k\" must be specified")
         if (!is.numeric(k)) stop("k must be numeric")
         if (!is.wholenumber(k) || (k<0)) stop("number of knots \"k\" must be a non-negative integer")
-        knots <- quantile(log(dtimes), seq(0, 1, length=k+2)[-c(1,k+2)])
+        knots <- quantile(tsfn(dtimes,timescale), seq(0, 1, length=k+2)[-c(1,k+2)])
     }
     else {
         if (!is.numeric(knots)) stop("\"knots\" must be a numeric vector")
-        minlogtime <- min(log(Y[,"stop"]))
+        minlogtime <- min(tsfn(Y[,"stop"], timescale))
         if (any(knots <= minlogtime)) {
-            badknots <- knots[knots < min(log(Y[,"stop"]))]
+            badknots <- knots[knots < min(tsfn(Y[,"stop"],timescale))]
             plural <- if (length(badknots) > 1) "s" else ""
-            stop("knot", plural, " ", paste(badknots,collapse=", "), " less than or equal to minimum log time ", minlogtime)
+            stop(sprintf("knot%s %s less than or equal to minimum %stime", plural, paste(badknots,collapse=", "), (if (timescale=="log") "log " else "")))
         }
-        maxlogtime <- max(log(Y[,"stop"]))
+        maxlogtime <- max(tsfn(Y[,"stop"], timescale))
         if (any(knots >= maxlogtime)) {
             badknots <- knots[knots > maxlogtime]
             plural <- if (length(badknots) > 1) "s" else ""
-            stop("knot", plural, " ", paste(badknots,collapse=", "), " greater than or equal to maximum log time ", maxlogtime)
+            stop(sprintf("knot%s %s greater than or equal to maximum %stime", plural, paste(badknots,collapse=", "), (if (timescale=="log") "log " else "")))
         }
     }
     if (is.null(bknots)) {
-        bknots <- c(min(log(dtimes)), max(log(dtimes)))
+        bknots <- c(min(tsfn(dtimes,timescale)), max(tsfn(dtimes,timescale)))
         if (bknots[1] == bknots[2])
             warning("minimum and maximum log death times are the same: knot and boundary knot locations should be supplied explicitly")
     } else 
@@ -346,20 +430,35 @@ flexsurvspline <- function(formula, data, k=0, knots=NULL, bknots=NULL, scale="h
     
     nk <- length(knots)
     custom.fss <- list(
-        name = "fn", # unused, d,p functions passed through
+        name = "survspline", # unused, d,p functions passed through
         pars = c(paste0("gamma",0:(nk-1))),
         location = c("gamma0"),
         transforms = rep(c(identity), nk), inv.transforms=rep(c(identity), nk),
         inits = flexsurv.splineinits
         )
-    aux <- list(knots=knots, scale=scale)
+    aux <- list(knots=knots, scale=scale, timescale=timescale)
     dfn <- unroll.function(dsurvspline, gamma=0:(nk-1))
     pfn <- unroll.function(psurvspline, gamma=0:(nk-1))
     rfn <- unroll.function(rsurvspline, gamma=0:(nk-1))
+    hfn <- unroll.function(hsurvspline, gamma=0:(nk-1))
+    Hfn <- unroll.function(Hsurvspline, gamma=0:(nk-1))
     Ddfn <- if (scale=="normal") NULL else unroll.function(DLdsurvspline, gamma=0:(nk-1))
     DSfn <- if (scale=="normal") NULL else unroll.function(DLSsurvspline, gamma=0:(nk-1))
     args <- c(list(formula=formula, data=data, dist=custom.fss,
-                   dfns=list(d=dfn,p=pfn,r=rfn,DLd=Ddfn,DLS=DSfn), aux=aux), list(...))
+                   dfns=list(d=dfn,p=pfn,r=rfn,h=hfn,H=Hfn,
+                   DLd=Ddfn,DLS=DSfn,deriv=!(scale=="normal")), aux=aux), list(...))
+
+    ## Try an alternative initial value routine if the default one gives zero likelihood
+    fpold <- args$fixedpars
+    args$fixedpars <- TRUE
+    if (is.infinite(do.call("flexsurvreg", args)$loglik)){
+        args$dist$inits <- flexsurv.splineinits.cox
+    }
+    args$fixedpars <- fpold
+    args$weights <- temp$weights
+    args$bhazard <- temp$bhazard
+    args$subset <- temp$subset
+    
     ret <- do.call("flexsurvreg", args) # faff to make ... args work within functions
     ret <- c(ret, list(k=length(knots) - 2, knots=knots, scale=scale))
     ret$call <- call

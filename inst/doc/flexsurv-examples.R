@@ -95,9 +95,10 @@ summary(fs2, newdata=list(group="Good"), t=1, fn=median.gengamma)
 
 
 ###################################################
-### code chunk number 5: flexsurv-examples.Rnw:184-196
+### code chunk number 5: flexsurv-examples.Rnw:189-209
 ###################################################
-library(TH.data)
+if (require("TH.data")){
+
 GBSG2 <- transform(GBSG2,
                    X1a=(age/50)^-2,
                    X1b=(age/50)^-0.5,
@@ -109,15 +110,12 @@ GBSG2 <- transform(GBSG2,
                   X5 + X6, data=GBSG2))
 (prog3 <- flexsurvspline(Surv(time, cens) ~ horTh + X1a + X1b + X4 + 
                            X5 + X6, k=3, data=GBSG2))
-
-
-###################################################
-### code chunk number 6: flexsurv-examples.Rnw:201-206
-###################################################
 predc <- predict(progc, type="lp")
 progc <- cut(predc, quantile(predc, 0:3/3))
 predf <- model.matrix(prog3) %*% prog3$res[-(1:5),"est"]
 progf <- cut(predf, quantile(predf, 0:3/3))
 table(progc, progf)
+
+}
 
 

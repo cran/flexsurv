@@ -74,7 +74,7 @@ flexsurvreg(formula, anc=NULL, data, weights, bhazard, subset,
     Optional variable giving expected hazards for relative survival models.
   }
   \item{subset}{
-    Vector of integer or logicals specifying the subset of the
+    Vector of integers or logicals specifying the subset of the
     observations to be used in the fit.
   }
   \item{na.action}{a missing-data filter function, applied after any
@@ -241,6 +241,7 @@ flexsurvreg(formula, anc=NULL, data, weights, bhazard, subset,
     \code{\link{vcov}} and \code{\link{confint}} methods for
     \code{flexsurvreg} objects work on this scale.}
   \item{loglik}{Log-likelihood}
+  \item{logliki}{Vector of individual contributions to the log-likelihood}
   \item{AIC}{Akaike's information criterion (-2*log likelihood + 2*number of
     estimated parameters)}
   \item{cov}{Covariance matrix of the parameters, on the real-line scale
@@ -380,7 +381,9 @@ lines(fitw, col="blue", lwd.ci=1, lty.ci=1)
 ## very flexible model to be worthwhile.
 
 ## Custom distribution
-library(eha)  ## make "dEV" and "pEV" available to the working environment
+## make "dEV" and "pEV" from eha package (if installed)
+##   available to the working environment
+if (require("eha")) {
 custom.ev <- list(name="EV",
                       pars=c("shape","scale"),
                       location="scale",
@@ -391,6 +394,8 @@ fitev <- flexsurvreg(formula = Surv(futime, fustat) ~ 1, data = ovarian,
                     dist=custom.ev)
 fitev
 lines(fitev, col="purple", col.ci="purple")
+}
+
 
 ## Custom distribution: supply the hazard function only
 hexp2 <- function(x, rate=1){ rate } # exponential distribution

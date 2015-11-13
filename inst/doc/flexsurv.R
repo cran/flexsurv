@@ -21,9 +21,9 @@ fs1
 ## ---------------------------------------------------------
 survreg(Surv(recyrs, censrec) ~ group, data = bc, dist = "weibull")
 
-## ----results='hide',message=FALSE,warning=FALSE-----------
-library("eha")
-aftreg(Surv(recyrs, censrec) ~ group, data = bc, dist = "weibull")
+## ----results='hide',eval=FALSE----------------------------
+#  library(eha)
+#  aftreg(Surv(recyrs, censrec) ~ group, data = bc, dist = "weibull")
 
 ## ---------------------------------------------------------
 fs2 <- flexsurvreg(Surv(recyrs, censrec) ~ group, data = bc, 
@@ -36,8 +36,7 @@ fs3 <- flexsurvreg(Surv(recyrs, censrec) ~ group + sigma(group), data = bc,
 #                     anc = list(sigma = ~ group), dist = "gengamma")
 
 ## ----surv,include=FALSE-----------------------------------
-library("colorspace")
-cols <- rainbow_hcl(3)
+cols <- c("#E495A5", "#86B875", "#7DB0DD") # from colorspace::rainbow_hcl(3)
 plot(fs1, col = cols[2], lwd.obs = 2, xlab = "Years", ylab = "Recurrence-free survival")
 lines(fs2, col = cols[3], lty = 2)
 lines(fs3, col = cols[3])
@@ -64,32 +63,31 @@ median.weibull <- function(shape, scale) {
 }
 summary(fs1, fn = median.weibull, t = 1, B = 10000)
 
-## ---------------------------------------------------------
-custom.llogis <- list(name = "llogis",  pars = c("shape", "scale"), 
-                      location = "scale",
-                      transforms = c(log, log), 
-                      inv.transforms = c(exp, exp),
-                      inits = function(t){ c(1, median(t)) })
-fs4 <- flexsurvreg(Surv(recyrs, censrec) ~ group, data = bc, 
-                   dist = custom.llogis)
+## ----eval=FALSE-------------------------------------------
+#  custom.llogis <- list(name = "llogis",  pars = c("shape", "scale"),
+#                        location = "scale",
+#                        transforms = c(log, log),
+#                        inv.transforms = c(exp, exp),
+#                        inits = function(t){ c(1, median(t)) })
+#  fs4 <- flexsurvreg(Surv(recyrs, censrec) ~ group, data = bc,
+#                     dist = custom.llogis)
+
+## ----eval=FALSE-------------------------------------------
+#  dmakeham3 <- function(x, shape1, shape2, scale, ...)  {
+#      dmakeham(x, shape = c(shape1, shape2), scale = scale, ...)
+#  }
+#  pmakeham3 <- function(q, shape1, shape2, scale, ...)  {
+#      pmakeham(q, shape = c(shape1, shape2), scale = scale, ...)
+#  }
+
+## ----eval=FALSE-------------------------------------------
+#  dmakeham3 <- Vectorize(dmakeham3)
+#  pmakeham3 <- Vectorize(pmakeham3)
+
+## ----eval=FALSE-------------------------------------------
+#  pmakeham3(c(0, 1, 1, Inf), 1, c(1, 1, 2, 1), 1)
 
 ## ---------------------------------------------------------
-dmakeham3 <- function(x, shape1, shape2, scale, ...)  {
-    dmakeham(x, shape = c(shape1, shape2), scale = scale, ...)
-}
-pmakeham3 <- function(q, shape1, shape2, scale, ...)  {
-    pmakeham(q, shape = c(shape1, shape2), scale = scale, ...)
-}
-
-## ---------------------------------------------------------
-dmakeham3 <- Vectorize(dmakeham3) 
-pmakeham3 <- Vectorize(pmakeham3)
-
-## ---------------------------------------------------------
-pmakeham3(c(0, 1, 1, Inf), 1, c(1, 1, 2, 1), 1)
-
-## ---------------------------------------------------------
-detach("package:eha")
 hweibullPH <- function(x, shape, scale = 1, log = FALSE){
     hweibull(x, shape = shape, scale = scale ^ {-1 / shape}, log = log)
 }
@@ -145,11 +143,11 @@ sp4 <- flexsurvspline(Surv(recyrs, censrec) ~ group + gamma1(group) +
 #                 data = bc, k = 1, scale = "hazard")
 
 ## ---------------------------------------------------------
-res <- t(sapply(list(fs1, fs2, fs3, fs4, sp1, sp2, sp3, sp4), 
+res <- t(sapply(list(fs1, fs2, fs3, sp1, sp2, sp3, sp4), 
                 function(x)rbind(-2 * round(x$loglik,1), x$npars, 
                                  round(x$AIC,1))))
 rownames(res) <- c("Weibull (fs1)", "Generalized gamma (fs2)",
-                   "Generalized gamma (fs3)", "Log-logistic (fs4)",
+                   "Generalized gamma (fs3)", 
                    "Spline (sp1)", "Spline (sp2)", "Spline (sp3)", 
                    "Spline (sp4)")
 colnames(res) <- c("-2 log likelihood", "Parameters", "AIC")
@@ -221,7 +219,7 @@ for (i in 1:3)
                                    dist = "weibull")
 
 ## ---------------------------------------------------------
-library("mstate")
+require("mstate")
 tmat <- rbind(c(NA, 1, 2), c(NA, NA, 3), c(NA, NA, NA))
 mrcox <- msfit(crcox, trans = tmat)
 mfcox <- msfit(cfcox, trans = tmat)
@@ -233,7 +231,7 @@ mrexp <- msfit.flexsurvreg(crexp, t = tgrid, trans = tmat)
 mfwei <- msfit.flexsurvreg(cfwei, t = tgrid, trans = tmat)
 
 ## ----cumhaz,include=FALSE---------------------------------
-cols <- c("black", rainbow_hcl(3))
+cols <- c("black", "#E495A5", "#86B875", "#7DB0DD") # colorspace::rainbow_hcl(3)
 plot(mrcox, xlab = "Years after baseline", lwd = 3, xlim = c(0, 14), cols = cols[1:3])
 for (i in 1:3){
     lines(tgrid, mrexp$Haz$Haz[mrexp$Haz$trans == i], col = cols[i], lty = 2, lwd = 2)

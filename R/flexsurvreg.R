@@ -253,11 +253,17 @@ minusloglik.flexsurv <- function(optpars, Y, X=0, weights, bhazard, dlist, inits
     ## Hazard offset for relative survival models
     if (any(bhazard>0)){
         loghaz <- logdens - log(pmax - pmin)
-        offset <- sum(log(1 + bhazard / exp(loghaz)*weights)[dead])
-    } else offset <- 0
-    ret <- - ( sum((logdens*weights)[dead]) +
-              sum((log(pmax - pmin)*weights)[!dead]) -
-              sum(log(pobs)*weights) + offset)
+        offseti <- log(1 + bhazard / exp(loghaz)*weights)
+    } else offseti <- rep(0, length(logdens))
+
+    ## Express as vector of individual likelihood contributions 
+    loglik <- numeric(length(logdens))
+    loglik[dead] <- (logdens*weights)[dead] + offseti[dead]
+    loglik[!dead] <- (log(pmax - pmin)*weights)[!dead]
+    loglik <- loglik - log(pobs)*weights
+    
+    ret <- -sum(loglik)
+    attr(ret, "indiv") <- loglik
     ret
 }
 
@@ -346,6 +352,7 @@ concat.formulae <- function(formula,forms){
     ## used for error message with incomplete "newdata" in summary()
     covnames.bare <- unlist(lapply(forms, function(x)all.vars(delete.response(terms(x)))))
     attr(f2, "covnames") <- covnames.bare
+    attr(f2, "covnames.orig") <- covnames
     f2
 }
         
@@ -450,7 +457,9 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, subset, na.ac
     temp[["formula"]] <- f2
     if (missing(data)) temp[["data"]] <- environment(formula)
     m <- eval(temp, parent.frame())
+    m <- droplevels(m) # remove unused factor levels after subset applied
     attr(m,"covnames") <- attr(f2, "covnames") # for "newdata" in summary
+    attr(m,"covnames.orig") <- intersect(colnames(m), attr(f2, "covnames.orig")) # for finding factors in plot method
     Y <- check.flexsurv.response(model.extract(m, "response"))
     mml <- mx <- vector(mode="list", length=length(dlist$pars))
     names(mml) <- names(mx) <- c(dlist$location, setdiff(dlist$pars, dlist$location))
@@ -461,11 +470,12 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, subset, na.ac
     X <- compress.model.matrices(mml)
     
     weights <- model.extract(m, "weights")
-    if (is.null(weights)) weights <- rep(1, nrow(X))
+    if (is.null(weights)) weights <- m$"(weights)" <- rep(1, nrow(X))
     bhazard <- model.extract(m, "bhazard")
     if (is.null(bhazard)) bhazard <- rep(0, nrow(X))
     dat <- list(Y=Y, m=m, mml=mml)
-    ncovs <- ncol(m) - 1
+    ncovs <- length(attr(m, "covnames.orig"))
+    
     ncoveffs <- ncol(X)
     nbpars <- length(parnames) # number of baseline parameters
     npars <- nbpars + ncoveffs
@@ -477,7 +487,7 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, subset, na.ac
         wt <- yy*weights*length(yy)/sum(weights)
         dlist$inits <- expand.inits.args(dlist$inits)
         inits.aux <- c(aux, list(forms=forms, data=if(missing(data)) NULL else data, weights=temp$weights,
-                                 subset=temp$subset, na.action=temp$na.action, control=sr.control,
+                                 control=sr.control,
                                  counting=(attr(model.extract(m, "response"), "type")=="counting")
                                  ))
         auto.inits <- dlist$inits(t=wt,mf=m,mml=mml,aux=inits.aux)
@@ -516,12 +526,14 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, subset, na.ac
         (is.numeric(fixedpars) && identical(fixedpars, 1:npars))) {
         minusloglik <- minusloglik.flexsurv(inits, Y=Y, X=X, weights=weights, bhazard=bhazard,
                                             dlist=dlist, inits=inits, dfns=dfns, aux=aux, mx=mx)
-        inits.t <- numeric(length(inits))
+        res.t <- matrix(inits, ncol=1)
+        inits.nat <- inits
         for (i in 1:nbpars)
-            inits.t[i] <- dlist$inv.transforms[[i]](inits[i])
-        res <- matrix(inits.t, ncol=1)
-        dimnames(res) <- list(names(inits.t), "est")
-        ret <- list(res=res, npars=0, loglik=-minusloglik)
+            inits.nat[i] <- dlist$inv.transforms[[i]](inits[i])
+        res <- matrix(inits.nat, ncol=1)
+        dimnames(res) <- dimnames(res.t) <- list(names(inits), "est")
+        ret <- list(res=res, res.t=res.t, npars=0,
+                    loglik=-as.vector(minusloglik), logliki=attr(minusloglik,"indiv"))
     }
     else {
         optpars <- inits[setdiff(1:npars, fixedpars)]
@@ -565,13 +577,17 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, subset, na.ac
             ## theoretically could also do logit SE(g(x) = exp(x)/(1 + exp(x))) = g'(x) SE(x);  g'(x) = exp(x)/(1 + exp(x))^2
             ## or any interval scale (dglogit) as in msm
         }
+        minusloglik <- minusloglik.flexsurv(res.t[,"est"], Y=Y, X=X, weights=weights, bhazard=bhazard,
+                                            dlist=dlist, inits=inits, dfns=dfns, aux=aux, mx=mx)
         ret <- list(res=res, res.t=res.t, cov=cov, coefficients=res.t[,"est"],
                     npars=length(est), fixedpars=fixedpars, optpars=setdiff(1:npars, fixedpars),
-                    mx=mx, ncovs=ncovs, ncoveffs=ncoveffs, basepars=1:nbpars, 
-                    covpars=if (ncoveffs>0) (nbpars+1):npars else NULL,
-                    loglik=-opt$value, cl=cl, opt=opt)
+                    loglik=-opt$value, logliki=attr(minusloglik,"indiv"),
+                    cl=cl, opt=opt)
     }
     ret <- c(list(call=call, dlist=dlist, aux=aux,
+                  ncovs=ncovs, ncoveffs=ncoveffs, 
+                  mx=mx, basepars=1:nbpars, 
+                  covpars=if (ncoveffs>0) (nbpars+1):npars else NULL,
                   AIC=-2*ret$loglik + 2*ret$npars,
                   data = dat, datameans = colMeans(X),
                   N=nrow(dat$Y), events=sum(dat$Y[,"status"]==1), trisk=sum(dat$Y[,"time"]),
@@ -620,6 +636,9 @@ print.flexsurvreg <- function(x, ...)
 
 form.model.matrix <- function(object, newdata){
     mfo <- model.frame(object)
+
+    ## If required covariate missing, give a slightly more informative error message than, e.g.
+    ## "Error in eval(expr, envir, enclos) (from flexsurvreg.R#649) : object 'sex' not found"
     covnames <- attr(mfo, "covnames")
     missing.covs <- unique(covnames[!covnames %in% names(newdata)])
     if (length(missing.covs) > 0){
@@ -627,28 +646,14 @@ form.model.matrix <- function(object, newdata){
         plural <- if (length(missing.covs)>1) "s" else ""
         stop(sprintf("Value%s of covariate%s ",plural,plural), paste(missing.covs, collapse=", "), " not supplied in \"newdata\"")
     }
-    extra.covs <- unique(names(newdata)[!names(newdata) %in% covnames])
-    if (length(extra.covs) > 0) {
-        warning("Covariates ", paste(paste("\"", extra.covs, "\"", sep=""), collapse=","), " unknown, ignoring")
-        newdata <- newdata[!names(newdata) %in% extra.covs]
-        if (ncol(newdata)==0) return(as.matrix(0, nrow=1))
-    }
-    ## don't insist on user defining factors in model as factors in newdata, do this for them
-    facs <- sapply(mfo, is.factor)
-    facnames <- gsub(".+\\((.+)\\)","\\1",names(facs))
-    for (i in which(facs))
-        newdata[,facnames[i]] <- factor(newdata[,facnames[i]])
-    temp <- call("model.frame")
-    f2 <- delete.response(terms(object$concat.formula))
-    temp[["formula"]] <- f2
-    temp[["data"]] <- newdata
-    mf <- eval(temp, parent.frame())
-    facs <- names(mf)[sapply(mf, is.factor)]
-    for (i in facs) {
-        unknown.levels <- levels(mf[,i])[!levels(mf[,i]) %in% levels(mfo[,i])]
-        if (length(unknown.levels) > 0) warning("Unknown levels \"", paste(unknown.levels, collapse=","), "\" for factor \"", i, "\"")
-        mf[,i] <- factor(mf[,i], levels=levels(mfo[,i]))
-     }
+
+    ## as in predict.lm 
+    tt <- attr(mfo, "terms")
+    Terms <- delete.response(tt)
+    mf <- model.frame(Terms, newdata, xlev = .getXlevels(tt, mfo))
+    if (!is.null(cl <- attr(Terms, "dataClasses"))) 
+        .checkMFClasses(cl, mf)
+    
     forms <- object$all.formulae
     mml <- vector(mode="list", length=length(object$dlist$pars))
     names(mml) <- names(forms)
@@ -657,16 +662,18 @@ form.model.matrix <- function(object, newdata){
         mml[[i]] <- model.matrix(forms[[i]], mf)
     }
     X <- compress.model.matrices(mml)
+
+    attr(X, "newdata") <- mf # newdata with any extra variables stripped.  Used to name components of summary list
     X
 }
 
 summary.flexsurvreg <- function(object, newdata=NULL, X=NULL, type="survival", fn=NULL, 
-                                t=NULL, start=0, ci=TRUE, B=1000, cl=0.95,
+                                t=NULL, start=0, ci=TRUE, B=1000, cl=0.95, tidy=FALSE,
                                 ...)
 {
     x <- object
     dat <- x$data
-    Xraw <- model.frame(x)[,-1,drop=FALSE]
+    Xraw <- model.frame(x)[,unique(attr(model.frame(x),"covnames.orig")),drop=FALSE]
     isfac <- sapply(Xraw,is.factor)
     type <- match.arg(type, c("survival","cumhaz","hazard"))
     if (is.null(newdata)){
@@ -714,8 +721,10 @@ summary.flexsurvreg <- function(object, newdata=NULL, X=NULL, type="survival", f
     }
     dlist <- x$dlist
     ret <- vector(nrow(X), mode="list")
-    if(!is.null(newdata))
-        covnames <- apply(as.data.frame(newdata), 1, function(x)paste0(names(newdata), "=", x, collapse=", "))
+    if(!is.null(newdata)){
+        nd <- attr(X, "newdata")
+        covnames <- apply(as.data.frame(nd), 1, function(x)paste0(names(nd), "=", x, collapse=", "))
+    }
     else covnames <- rownames(X)
     names(ret) <- covnames
     for (i in 1:nrow(X)) {
@@ -735,7 +744,13 @@ summary.flexsurvreg <- function(object, newdata=NULL, X=NULL, type="survival", f
         if (ci) { ret[[i]]$lcl <- ly; ret[[i]]$ucl <- uy}
     }
     if (x$ncovs>0) attr(ret,"X") <- X
-    class(ret) <- "summary.flexsurvreg"
+    if (tidy) {
+        ret <- do.call("rbind", ret)
+        covdf <- unique(Xraw)[rep(seq_len(nrow(unique(Xraw))), each=length(t)), , drop=FALSE]
+        rownames(ret) <- NULL
+        ret <- cbind(ret, covdf)
+    }
+    class(ret) <- c("summary.flexsurvreg",class(ret))
     ret
 }
 
@@ -759,12 +774,16 @@ summary.fns <- function(x, type){
 }
 
 print.summary.flexsurvreg <- function(x, ...){
-    for (i in seq_along(x)){
-        cat(names(x)[i], "\n")
-        print(x[[i]])
-        if (i<length(x)) cat("\n")
-    }
+    if (!inherits(x, "data.frame")){ 
+        for (i in seq_along(x)){
+            cat(names(x)[i], "\n")
+            print(x[[i]])
+            if (i<length(x)) cat("\n")
+        }
+    } else print.data.frame(x)
 }
+
+## TODO would converting newdata to X be better handled in this function
 
 add.covs <- function(x, pars, beta, X, transform=FALSE){  ## TODO option to transform on input 
     nres <- nrow(X)
@@ -862,7 +881,8 @@ plot.flexsurvreg <- function(x, newdata=NULL, X=NULL, type="survival", fn=NULL, 
                              add=FALSE,...)
 {
     ## don't calculate or plot CIs by default if all covs are categorical -> multiple curves
-    Xraw <- model.frame(x)[,-1,drop=FALSE]
+    mf <- model.frame(x)
+    Xraw <- mf[,attr(mf, "covnames.orig"), drop=FALSE]
     if (is.null(ci))
         ci <- ((x$ncovs == 0) || (!(sapply(Xraw,is.factor))))
     if (!ci) B <- 0
@@ -900,7 +920,6 @@ plot.flexsurvreg <- function(x, newdata=NULL, X=NULL, type="survival", fn=NULL, 
             }
             else {
                 ## plot hazard for all groups defined by unique combinations of covariates
-                ## TODO TEST THIS 
                 group <- if(x$ncovs>0) do.call("interaction", mm) else factor(rep(0,nrow(dat$Y)))
                 Xgroup <- factor(do.call("interaction", as.data.frame(X)), levels=levels(group))
                 haz <- list()

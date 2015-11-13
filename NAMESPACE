@@ -34,6 +34,12 @@ hsurvspline,
 Hsurvspline,
 hweibull,    
 Hweibull,    
+dweibullPH,    
+pweibullPH,    
+qweibullPH,    
+rweibullPH,    
+hweibullPH,    
+HweibullPH,    
 lines.flexsurvreg,
 msfit.flexsurvreg,    
 normboot.flexsurvreg,
@@ -78,6 +84,7 @@ importFrom(survival, survreg.control)
 importFrom(muhaz, muhaz)
 importFrom(mvtnorm, rmvnorm)
 importFrom(deSolve, ode)
+importFrom(quadprog, solve.QP)
 
 S3method(print, flexsurvreg)
 S3method(plot, flexsurvreg)
@@ -88,3 +95,16 @@ S3method(logLik, flexsurvreg)
 S3method(model.frame, flexsurvreg)
 S3method(model.matrix, flexsurvreg)
 S3method(print, summary.flexsurvreg)
+
+importFrom("graphics", "lines")
+importFrom("stats", "as.formula", "coef", "cov", "delete.response",
+           "dexp", "dgamma", "dlnorm", "dnorm", "dweibull", "median",
+           "model.extract", "model.frame", "model.matrix", "na.omit",
+           "pbeta", "pexp", "pgamma", "plnorm", "plogis", "pnorm",
+           "pweibull", "qexp", "qf", "qgamma", "qlnorm", "qlogis",
+           "qnorm", "quantile", "reformulate", "rf", "rgamma",
+           "rlnorm", "runif", "rweibull", "sd", "terms", "uniroot",
+           "var", ".checkMFClasses", ".getXlevels", "qweibull",
+           "weights")
+
+importFrom("mstate", "msfit", "probtrans")

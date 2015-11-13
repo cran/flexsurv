@@ -28,10 +28,8 @@ delta <- (Q^2 + 2*P)^{1/2}
 s1 <- 2 / (Q^2 + 2*P + Q*delta); s2 <- 2 / (Q^2 + 2*P - Q*delta)
 
 test_that("Generalized F reduces to log logistic",{
-    if (is.element("eha", installed.packages()[,1])) {
-        expect_equal(dgenf(x, mu=mu, sigma=sigma, Q=Q, P=P),
-                     dllogis(x, shape=sqrt(2)/sigma, scale=exp(mu)), tol=tol)
-    }
+    expect_equal(dgenf(x, mu=mu, sigma=sigma, Q=Q, P=P),
+                 dllogis(x, shape=sqrt(2)/sigma, scale=exp(mu)), tol=tol)
 })
 
 test_that("Generalized F reduces to gamma",{
@@ -349,6 +347,11 @@ test_that("Spline distribution functions",{
     expect_equal(1 - psurvspline(1, g, knots=k),  psurvspline(1, g, knots=k, lower.tail=FALSE))
     expect_equal(log(psurvspline(c(-1,NA,1), g, knots=k)),  psurvspline(c(-1,NA,1), g, knots=k, log.p=TRUE))
 
+    ## single x=0: fully defined in in dbase.survspline
+    expect_equal(dsurvspline(0, g, knots=k), 0)
+    ## value for x=0?  currently zero, should it be limit as x reduces to 0? 
+    expect_equal(hsurvspline(0, g, knots=k), 0)
+    
     ## TODO special value handling and vectorisation for d function
     if(0){
         bc$foo <- factor(sample(1:3, nrow(bc), replace=TRUE))
@@ -416,7 +419,8 @@ test_that("Generalized gamma definition in Stata manual",{
 
 test_that("llogis",{
     x <- c(0.1, 0.2, 0.7)
-    expect_equal(dllogis(x, shape=0.1, scale=0.2), eha::dllogis(x, shape=0.1, scale=0.2))
+    if (require("eha"))
+        expect_equal(dllogis(x, shape=0.1, scale=0.2), eha::dllogis(x, shape=0.1, scale=0.2))
     expect_equal(qllogis(x, shape=0.1, scale=0.2), qgeneric(pllogis, p=x, shape=0.1, scale=0.2))
     expect_equal(x, pllogis(qllogis(x, shape=0.1, scale=0.2), shape=0.1, scale=0.2))
     expect_equal(x, 1 - exp(-Hllogis(qllogis(x, shape=0.1, scale=0.2), shape=0.1, scale=0.2)))
@@ -435,4 +439,31 @@ test_that("llogis",{
     expect_equal(var.llogis(shape=1.1, scale=0.2), NaN)
     mean.llogis(shape=1.1, scale=0.2)
     var.llogis(shape=2.1, scale=0.2)
+})
+
+test_that("WeibullPH",{
+    a <- 0.1; m <- 2
+    b <- m^(-1/a)
+    x <- c(-Inf, NaN, NA, -1, 0, 1, 2, Inf)
+    expect_equal(dweibullPH(x, a, m), dweibull(x, a, b))
+    expect_equal(dweibullPH(x, a, m), dweibull(x, a, b), log=TRUE)
+    expect_equal(pweibullPH(x, a, m), pweibull(x, a, b))
+    expect_equal(pweibullPH(x, a, m), pweibull(x, a, b), log.p=TRUE)
+    expect_equal(pweibullPH(x, a, m), pweibull(x, a, b), lower.tail=FALSE)
+    qq <- c(0, 0.5, 0.7, 1)
+    expect_equal(qweibullPH(qq, a, m), qweibull(qq, a, b))
+    expect_equal(hweibullPH(x, a, m), hweibull(x, a, b))
+    expect_equal(hweibullPH(x, a, m), hweibull(x, a, b), log=TRUE)
+    expect_equal(HweibullPH(x, a, m), Hweibull(x, a, b))
+    expect_equal(HweibullPH(x, a, m), Hweibull(x, a, b), log=TRUE)
+    set.seed(1); x1 <- rweibull(10, a, b)
+    set.seed(1); x2 <- rweibullPH(10, a, m)
+    expect_equal(x1, x2)
+
+    fitw <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ rx, data = ovarian, dist="weibull")
+    fitwp <- flexsurvreg(formula = Surv(ovarian$futime, ovarian$fustat) ~ rx, data = ovarian, dist="weibullPH")
+    expect_equal(fitw$res["shape","est"], fitwp$res["shape","est"], tol=1e-06)
+    expect_equal(fitw$res["scale","est"], fitwp$res["scale","est"]^(-1/fitwp$res["shape","est"]), tol=1e-05)
+    expect_equal(coef(fitw)["rx"], -coef(fitwp)["rx"] / fitwp$res["shape","est"])
+    
 })

@@ -278,8 +278,8 @@ effects $\exp(\bm{\beta})$ are printed in the output as
 \end{sloppypar}
 
 The same model can be fitted in \pkg{eha}, also by maximum likelihood, as
-<<results='hide',message=FALSE,warning=FALSE>>=
-library("eha")
+<<results='hide',eval=FALSE>>=
+library(eha)
 aftreg(Surv(recyrs, censrec) ~ group, data = bc, dist = "weibull")
 @ 
 The results are presented in the same parameterisation as
@@ -331,11 +331,12 @@ corresponding cumulative distribution functions (with first letter
 \code{flexsurvreg} to compute the likelihood.
 
 \pkg{flexsurv} provides some additional survival distributions,
-including a Gompertz distribution with unrestricted shape parameter
-(\code{dist = "gompertz"}), log-logistic, and the three- and four-parameter families
-described below.  For all built-in distributions, \pkg{flexsurv} also
-defines functions beginning with \code{h} giving the hazard, and \code{H}
-for the cumulative hazard.
+including a Gompertz distribution with unrestricted shape parameter,
+Weibull with proportional hazards parameterisation, log-logistic, and
+the three- and four-parameter families described below.  For all
+built-in distributions, \pkg{flexsurv} also defines functions
+beginning with \code{h} giving the hazard, and \code{H} for the
+cumulative hazard.
 
 \paragraph{Generalized gamma} This three-parameter distribution
 includes the Weibull, gamma and log-normal as special cases.  The
@@ -406,7 +407,8 @@ the best estimated predictive ability.
     & {\footnotesize{(location in \code{\color{red}{red}})}} & & \\
 \hline
     Exponential & \code{\color{red}{rate}}             & \code{dexp}   & \code{"exp"} \\
-    Weibull     & \code{shape, {\color{red}{scale}}}     & \code{dweibull} & \code{"weibull"} \\
+    Weibull (accelerated failure time)     & \code{shape, {\color{red}{scale}}}     & \code{dweibull} & \code{"weibull"} \\
+    Weibull (proportional hazards)     & \code{shape, {\color{red}{scale}}}     & \code{dweibullPH} & \code{"weibullPH"} \\
     Gamma       & \code{shape, \color{red}{rate}}      & \code{dgamma} & \code{"gamma"}\\
     Log-normal  & \code{{\color{red}{meanlog}}, sdlog}   & \code{dlnorm} & \code{"lnorm"}\\
     Gompertz    & \code{shape, {\color{red}{rate}}}      & \code{dgompertz} & \code{"gompertz"} \\
@@ -432,8 +434,7 @@ categorical covariates (Figure \ref{fig:surv}).  The corresponding estimates fro
 model are overlaid.  Fitted values from further models can be added
 with the \code{lines()} method.  
 <<surv,include=FALSE>>=
-library("colorspace")
-cols <- rainbow_hcl(3)
+cols <- c("#E495A5", "#86B875", "#7DB0DD") # from colorspace::rainbow_hcl(3)
 plot(fs1, col = cols[2], lwd.obs = 2, xlab = "Years", ylab = "Recurrence-free survival")
 lines(fs2, col = cols[3], lty = 2)
 lines(fs3, col = cols[3])
@@ -657,7 +658,7 @@ The following custom model uses the log-logistic distribution functions
 \pkg{eha}.   
   The survivor function is $S(t|\mu,\alpha) = 1/(1 + (t/\mu)^\alpha)$,
 so that the log odds $\log((1-S(t))/S(t))$ of having died are a linear function of log time.
-<<>>=
+<<eval=FALSE>>=
 custom.llogis <- list(name = "llogis",  pars = c("shape", "scale"), 
                       location = "scale",
                       transforms = c(log, log), 
@@ -682,7 +683,7 @@ The shape parameters $\alpha_1,\alpha_2$ are provided to
 expects distribution functions to have one argument for each
 parameter.  Therefore we write our own functions that wrap around 
 the third-party functions.
-<<>>=
+<<eval=FALSE>>=
 dmakeham3 <- function(x, shape1, shape2, scale, ...)  {
     dmakeham(x, shape = c(shape1, shape2), scale = scale, ...)
 }
@@ -695,12 +696,12 @@ pmakeham3 <- function(q, shape1, shape2, scale, ...)  {
 That is, we can supply a vector of alternative values for one or more
 arguments, and expect a vector of the same length to be returned.  The
 \proglang{R} base function \code{Vectorize} can be used to do this here.
-<<>>=
+<<eval=FALSE>>=
 dmakeham3 <- Vectorize(dmakeham3) 
 pmakeham3 <- Vectorize(pmakeham3)
 @ 
 and this allows us to write, for example, 
-<<>>=
+<<eval=FALSE>>=
 pmakeham3(c(0, 1, 1, Inf), 1, c(1, 1, 2, 1), 1)
 @ 
 We could then use \code{dist = list(name = "makeham3", pars = c("shape1", "shape2", \\
@@ -710,15 +711,18 @@ the second shape parameter is poorly identifiable.
 
 \paragraph{Example: Changing the parameterisation of a distribution}
 
-We may want to fit a Weibull model like \code{fs1}, but with the proportional hazards (PH) parameterisation $S(t) =
-\exp(-\mu t^\alpha)$, so that the covariate effects reported in the
-printed \code{flexsurvreg} object can be interpreted as hazard ratios
-or log hazard ratios without any further transformation.
-Here instead of the density and cumulative distribution functions, we
-provide the hazard and cumulative hazard.\footnote{The \pkg{eha} package 
-needs to be detached first so that \pkg{flexsurv}'s built-in \code{hweibull} is used, which returns \code{NaN} if the parameter values are zero, rather than failing as \pkg{eha}'s currently does.}
+We may want to fit a Weibull model like \code{fs1}, but with the
+proportional hazards (PH) parameterisation $S(t) = \exp(-\mu
+t^\alpha)$, so that the covariate effects reported in the printed
+\code{flexsurvreg} object can be interpreted as hazard ratios or log
+hazard ratios without any further transformation.  Here instead of the
+density and cumulative distribution functions, we provide the hazard
+and cumulative hazard.  (Note that since version 0.7, the
+\code{"weibullPH"} distribution is built in to \code{flexsurvreg} ---
+but this example has been kept here for illustrative purposes.)
+\footnote{The \pkg{eha} package 
+may need to be detached first so that \pkg{flexsurv}'s built-in \code{hweibull} is used, which returns \code{NaN} if the parameter values are zero, rather than failing as \pkg{eha}'s currently does.}
 <<>>=
-detach("package:eha")
 hweibullPH <- function(x, shape, scale = 1, log = FALSE){
     hweibull(x, shape = shape, scale = scale ^ {-1 / shape}, log = log)
 }
@@ -742,7 +746,7 @@ The fitted model is the same as \code{fs1}, therefore the maximised likelihood i
 The parameter estimates of \code{fs6} can be transformed to those of \code{fs1} as shown. 
 The shape $\alpha$ is common to both models, the scale $\mu^\prime$ in the AFT model is related to the PH scale $\mu$ as  $\mu^\prime$ = $\mu^{-1/\alpha}$.   
 The effects $\beta^\prime$ on life expectancy in the AFT model
-are related to the hazard ratios $\beta$ as $\beta^\prime = -\beta/\alpha$.
+are related to the log hazard ratios $\beta$ as $\beta^\prime = -\beta/\alpha$.
 
 A slightly more complicated example is given in the package vignette
 \code{flexsurv-examples} of constructing a proportional hazards
@@ -810,7 +814,8 @@ is the log cumulative hazard.  Table \ref{tab:spline} explains two
 further choices of $g()$, and the parameter values and distributions
 they simplify to for $m=0$.  The probability density and cumulative
 distribution functions for all these models are available as
-\code{dsurvspline} and \code{psurvspline}.
+\code{dsurvspline} and \code{psurvspline}.  A model with an absolute time
+scale ($x = t$) is also available through \code{timescale="identity"}. 
 
   \begin{table}
   \begin{tabularx}{\textwidth}{lXlp{1.4in}}
@@ -931,11 +936,11 @@ flexsurvspline(Surv(recyrs, censrec) ~ group + gamma1(group) +
 would represent a model stratified by group, where the hazard ratio for treatment is time-varying, but the model is not fully stratified by treatment.
 
 <<>>=
-res <- t(sapply(list(fs1, fs2, fs3, fs4, sp1, sp2, sp3, sp4), 
+res <- t(sapply(list(fs1, fs2, fs3, sp1, sp2, sp3, sp4), 
                 function(x)rbind(-2 * round(x$loglik,1), x$npars, 
                                  round(x$AIC,1))))
 rownames(res) <- c("Weibull (fs1)", "Generalized gamma (fs2)",
-                   "Generalized gamma (fs3)", "Log-logistic (fs4)",
+                   "Generalized gamma (fs3)", 
                    "Spline (sp1)", "Spline (sp2)", "Spline (sp3)", 
                    "Spline (sp4)")
 colnames(res) <- c("-2 log likelihood", "Parameters", "AIC")
@@ -1006,7 +1011,7 @@ package to implement new model families, through wrappers similar to
 \paragraph{Example: splines on alternative scales}
 
 An alternative to the Royston-Parmar spline model is to model the log
-\emph{hazard} as a function of time instead of the log cumulative
+\emph{hazard} as a spline function of (log) time instead of the log cumulative
 hazard.  \citet{stgenreg} demonstrate this model using the \proglang{Stata}
 \pkg{stgenreg} package.  An advantage explained by
 \citet{royston:lambert:book} is that when there are
@@ -1382,7 +1387,7 @@ in \pkg{mstate} \citep{mstate:cmpb,mstate:jss} provides
 piecewise-constant estimates and covariances for $H_{rs}(t)$.
 For the Cox models for the BOS data,
 <<>>=
-library("mstate")
+require("mstate")
 tmat <- rbind(c(NA, 1, 2), c(NA, NA, 3), c(NA, NA, NA))
 mrcox <- msfit(crcox, trans = tmat)
 mfcox <- msfit(cfcox, trans = tmat)
@@ -1420,7 +1425,7 @@ clock-reset model has an improved AIC of \Sexpr{round(crwei$AIC)}, compared to
 the clock-forward and clock-reset models give slightly
 different hazard trajectories.
 <<cumhaz,include=FALSE>>=
-cols <- c("black", rainbow_hcl(3))
+cols <- c("black", "#E495A5", "#86B875", "#7DB0DD") # colorspace::rainbow_hcl(3)
 plot(mrcox, xlab = "Years after baseline", lwd = 3, xlim = c(0, 14), cols = cols[1:3])
 for (i in 1:3){
     lines(tgrid, mrexp$Haz$Haz[mrexp$Haz$trans == i], col = cols[i], lty = 2, lwd = 2)
@@ -1554,7 +1559,6 @@ mssample(mrcox$Haz, trans = tmat, clock = "reset", M = 1000,
 mssample(mrwei$Haz, trans = tmat, clock = "reset", M = 1000, 
          tvec = c(5, 10))
 @ 
-
 
 \section{Potential extensions}
 \label{sec:extensions}
