@@ -1,4 +1,5 @@
 ### R code from vignette source 'flexsurv-examples.Rnw'
+### Encoding: UTF-8
 
 ###################################################
 ### code chunk number 1: flexsurv-examples.Rnw:39-59
@@ -35,10 +36,10 @@ B <- 5000
 t <- seq(0.1, 8, by=0.1)
 
 hrAFT.est <-
-    summary.flexsurvreg(fs2, t=t, type="hazard",
-                        newdata=data.frame(group="Medium"),ci=FALSE)[[1]][,"est"] /
-    summary.flexsurvreg(fs2, t=t, type="hazard",
-                        newdata=data.frame(group="Good"),ci=FALSE)[[1]][,"est"]
+    summary(fs2, t=t, type="hazard",
+            newdata=data.frame(group="Medium"),ci=FALSE)[[1]][,"est"] /
+    summary(fs2, t=t, type="hazard",
+            newdata=data.frame(group="Good"),ci=FALSE)[[1]][,"est"]
 pars <- normboot.flexsurvreg(fs2, B=B, newdata=data.frame(group=c("Good","Medium")))
 hrAFT <- matrix(nrow=B, ncol=length(t))
 for (i in seq_along(t)){ 
@@ -49,10 +50,10 @@ for (i in seq_along(t)){
 hrAFT <- apply(hrAFT, 2, quantile, c(0.025, 0.975))
 
 hrPH.est <-
-    summary.flexsurvreg(fs7, t=t, type="hazard",
-                        newdata=data.frame(group="Medium"),ci=FALSE)[[1]][,"est"] /
-    summary.flexsurvreg(fs7, t=t, type="hazard",
-                        newdata=data.frame(group="Good"),ci=FALSE)[[1]][,"est"]
+    summary(fs7, t=t, type="hazard",
+            newdata=data.frame(group="Medium"),ci=FALSE)[[1]][,"est"] /
+    summary(fs7, t=t, type="hazard",
+            newdata=data.frame(group="Good"),ci=FALSE)[[1]][,"est"]
 pars <- normboot.flexsurvreg(fs7, B=B, newdata=data.frame(group=c("Good","Medium")))
 hrPH <- matrix(nrow=B, ncol=length(t))
 for (i in seq_along(t)){ 

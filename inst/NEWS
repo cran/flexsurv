@@ -1,9 +1,53 @@
 -*- text -*-
 
+
+Version 1.1 (2017-??-??)
+-------------
+
+* Substantial speed improvements in fitting most of the built-in
+  models, from implementing their PDFs and CDFs in C++.  Thanks to
+  Paul Metcalfe for contributing this.  Results may therefore differ
+  from previous versions in edge cases. 
+
+* As a result the package now depends on Rcpp.
+
+* Mean, median and restricted mean included as built-in functions in
+  summary.flexsurvreg. Thanks to Jordan Amdahl for the contribution.
+
+* Documentation migrated to roxygen.  Thanks to Paul Metcalfe for the
+  contribution.
+
+* Various minor bug fixes, see github commits.
+
+
+Version 1.0.2 (2016-09-26)
+-------------
+
+* Bug fix: "start" was being ignored by plot.flexsurvreg. Thanks to
+  Ruth Keogh.
+
+* Built-in distribution names are now case-insensitive.  Thanks to
+  Jordan Amdahl.
+
+* Fix for Weibull hazard function to avoid numeric instability.
+  Thanks to Jordan Amdahl.
+
+* Fix to hsurvspline when t includes 0.  Thanks to Jordan Amdahl.
+
+* Vectorised parameters supported in qgeneric.
+
+
+Version 1.0.1 (2016-05-31)
+-------------
+
+* Bug fix: covariates were labelled wrongly in summary.flexsurvreg
+  tidy output.  Thanks to Owain Saunders.
+
+
 Version 1.0.0 (2016-05-10)
 -------------
 
-* Version number bumped to 1.0.0 to accompany the release of the
+* Version number bumped to 1.0.0 to accompany the publication of the
   vignette in Journal of Statistical Software.
 
 

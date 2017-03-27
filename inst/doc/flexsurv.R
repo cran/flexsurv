@@ -87,6 +87,9 @@ summary(fs1, fn = median.weibull, t = 1, B = 10000)
 ## ----eval=FALSE-------------------------------------------
 #  pmakeham3(c(0, 1, 1, Inf), 1, c(1, 1, 2, 1), 1)
 
+## ----echo=FALSE-------------------------------------------
+options(warn=-1)
+
 ## ---------------------------------------------------------
 hweibullPH <- function(x, shape, scale = 1, log = FALSE){
     hweibull(x, shape = shape, scale = scale ^ {-1 / shape}, log = log)
@@ -106,6 +109,9 @@ fs6 <- flexsurvreg(Surv(recyrs, censrec) ~ group, data = bc,
 fs6$res["scale", "est"] ^ {-1 / fs6$res["shape", "est"]}
 - fs6$res["groupMedium", "est"] / fs6$res["shape", "est"]
 - fs6$res["groupPoor", "est"] / fs6$res["shape", "est"]
+
+## ----echo=FALSE-------------------------------------------
+options(warn=0)
 
 ## ---------------------------------------------------------
 sp1 <- flexsurvspline(Surv(recyrs, censrec) ~ group, data = bc, k = 1, 
