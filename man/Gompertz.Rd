@@ -2,12 +2,18 @@
 % Please edit documentation in R/Gompertz.R
 \name{Gompertz}
 \alias{Gompertz}
-\alias{Hgompertz}
 \alias{dgompertz}
+\alias{pgompertz}
+\alias{qgompertz}
 \alias{hgompertz}
+\alias{Hgompertz}
+\alias{rgompertz}
+\alias{dgompertz}
 \alias{pgompertz}
 \alias{qgompertz}
 \alias{rgompertz}
+\alias{hgompertz}
+\alias{Hgompertz}
 \title{The Gompertz distribution}
 \usage{
 dgompertz(x, shape, rate = 1, log = FALSE)
@@ -66,7 +72,7 @@ The probability distribution function is \deqn{F(x | a, b) = 1 - \exp(-b/a
 (e^{ax} - 1))}{F(x | a, b) = 1 - exp(-b/a (exp(ax) - 1))}
 
 Thus if \eqn{a} is negative, letting \eqn{x} tend to infinity shows that
-there is a non-zero probability \eqn{1 - \exp(b/a)}{1 - exp(b/a)} of living
+there is a non-zero probability \eqn{\exp(b/a)}{exp(b/a)} of living
 forever.  On these occasions \code{qgompertz} and \code{rgompertz} will
 return \code{Inf}.
 }
@@ -83,9 +89,6 @@ called \code{1 / scale} there is called the \code{shape} here. The
 terminology here is consistent with the exponential \code{\link{dexp}} and
 Weibull \code{\link{dweibull}} distributions in R.
 }
-\author{
-Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
-}
 \references{
 Stata Press (2007) Stata release 10 manual: Survival analysis
 and epidemiological tables.
@@ -93,5 +96,7 @@ and epidemiological tables.
 \seealso{
 \code{\link{dexp}}
 }
+\author{
+Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
+}
 \keyword{distribution}
-

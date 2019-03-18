@@ -42,7 +42,7 @@
 ##' used.  In the one used here, the interpretation of the parameters
 ##' is the same as in the standard Weibull distribution
 ##' (\code{\link{dweibull}}).  Like the Weibull, the survivor function
-##' is a transformation of \eqn{(x/b)^a} from the real line to [0,1],
+##' is a transformation of \eqn{(x/b)^a} from the non-negative real line to [0,1],
 ##' but with a different link function.  Covariates on \eqn{b}
 ##' represent time acceleration factors, or ratios of expected
 ##' survival.
@@ -72,7 +72,8 @@ pllogis <- function(q, shape=1, scale=1, lower.tail = TRUE, log.p = FALSE) {
 qllogis <- function(p, shape=1, scale=1, lower.tail = TRUE, log.p = FALSE) {
     d <- dbase("llogis", lower.tail=lower.tail, log=log.p, p=p, shape=shape, scale=scale)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]])
-    ret[ind] <- exp(qlogis(p, log(scale), 1/shape, lower.tail, log.p))
+    # lower.tail is handled in dbase() by transforming p to 1-p
+    ret[ind] <- exp(qlogis(p, log(scale), 1/shape, lower.tail=TRUE, log.p))
     ret
 }
 

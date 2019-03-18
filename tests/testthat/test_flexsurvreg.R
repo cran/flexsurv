@@ -183,6 +183,7 @@ test_that("Errors in summary function",{
     expect_error(summary(fitg, start=1:2, ci=FALSE), "length of \"start\"")
 })
 
+
 test_that("Model fit with covariates and simulated data",{
     x <- rnorm(500,0,1)
     sim <- rgenf(500, 1.5 - 0.2*x, 1, -0.4, 0.6)
@@ -487,4 +488,42 @@ test_that("RMST/Mean/Median calculations are working",{
     "Median selected, but time specified."
   )
   
+})
+
+test_that("No events in the data",{
+    set.seed(1)
+    tmin <- rexp(100, 1) 
+    tmax <- tmin + 0.1
+    mod <- flexsurvreg(Surv(tmin, tmax, type="interval2") ~ 1, dist="exponential")
+    expect_equal(mod$loglik, -337.9815, tol=1e-03)
+})
+
+test_that("No censoring in the data",{
+    bcev <- bc[bc$censrec==1,]
+    mod <- flexsurvreg(Surv(recyrs, censrec) ~ 1, data=bcev, dist="weibull")
+    expect_equal(mod$loglik, -477.2455, tol=1e-03)
+})
+
+test_that("summary type=quantile is consistent",{
+  expect_equal(summary(fitg, type='quantile', quantiles=.5)[[1]][1,2]
+               ,summary(fitg, type='median')[[1]][1,1])
+  
+  expect_equal(summary(fitg, type='quantile', quantiles=.5, start = 50)[[1]][1,2]
+               ,summary(fitg, type='median', start = 50)[[1]][1,1])
+})
+
+test_that("Errors in summary type=quantile",{
+  expect_error(summary(fitg, type='quantile', quantiles=1.5), "Quantiles should not be less than 0 or greater than 1")
+  expect_error(summary(fitg, type='quantile', quantiles=-.5), "Quantiles should not be less than 0 or greater than 1")
+})
+
+test_that("SEs in summary function",{
+    expect_true(is.numeric(summary(fitg, se=TRUE)[[1]]$se))
+})
+
+test_that("summary type `link`",{
+    expect_equal(summary(fitg, type="link")[["factor(rx)=1"]]$est, 
+                 fitg$res["scale","est"])
+    expect_equal(summary(fitg, type="link")[["factor(rx)=2"]]$est, 
+                 exp(fitg$res.t["scale","est"] + fitg$res.t["factor(rx)2","est"]))
 })
