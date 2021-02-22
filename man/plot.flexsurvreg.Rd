@@ -4,11 +4,31 @@
 \alias{plot.flexsurvreg}
 \title{Plots of fitted flexible survival models}
 \usage{
-\method{plot}{flexsurvreg}(x, newdata = NULL, X = NULL, type = "survival",
-  fn = NULL, t = NULL, start = 0, est = TRUE, ci = NULL, B = 1000,
-  cl = 0.95, col.obs = "black", lty.obs = 1, lwd.obs = 1, col = "red",
-  lty = 1, lwd = 2, col.ci = NULL, lty.ci = 2, lwd.ci = 1,
-  ylim = NULL, add = FALSE, ...)
+\method{plot}{flexsurvreg}(
+  x,
+  newdata = NULL,
+  X = NULL,
+  type = "survival",
+  fn = NULL,
+  t = NULL,
+  start = 0,
+  est = TRUE,
+  ci = NULL,
+  B = 1000,
+  cl = 0.95,
+  col.obs = "black",
+  lty.obs = 1,
+  lwd.obs = 1,
+  col = "red",
+  lty = 1,
+  lwd = 2,
+  col.ci = NULL,
+  lty.ci = 2,
+  lwd.ci = 1,
+  ylim = NULL,
+  add = FALSE,
+  ...
+)
 }
 \arguments{
 \item{x}{Output from \code{\link{flexsurvreg}} or
@@ -113,6 +133,10 @@ work.  This function was designed as a quick check of model fit.  Users
 wanting publication-quality graphs are advised to set up an empty plot with
 the desired axes first (e.g. with \code{plot(...,type="n",...)}), then use
 suitable \code{\link{lines}} functions to add lines.
+
+If case weights were used to fit the model, these are used when producing
+nonparametric estimates of survival and cumulative hazard, but not for
+the hazard estimates.
 }
 \seealso{
 \code{\link{flexsurvreg}}

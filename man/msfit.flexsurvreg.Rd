@@ -4,8 +4,15 @@
 \alias{msfit.flexsurvreg}
 \title{Cumulative intensity function for parametric multi-state models}
 \usage{
-msfit.flexsurvreg(object, t, newdata = NULL, variance = TRUE,
-  tvar = "trans", trans, B = 1000)
+msfit.flexsurvreg(
+  object,
+  t,
+  newdata = NULL,
+  variance = TRUE,
+  tvar = "trans",
+  trans,
+  B = 1000
+)
 }
 \arguments{
 \item{object}{Output from \code{\link{flexsurvreg}} or
@@ -143,7 +150,7 @@ msfit.flexsurvreg(bexp.list, t=seq(0,12,by=0.1), trans=tmat)
 Liesbeth C. de Wreede, Marta Fiocco, Hein Putter (2011).
 \pkg{mstate}: An R Package for the Analysis of Competing Risks and
 Multi-State Models. \emph{Journal of Statistical Software}, 38(7), 1-30.
-\url{http://www.jstatsoft.org/v38/i07}
+\url{https://www.jstatsoft.org/v38/i07}
 
 Mandel, M. (2013). "Simulation based confidence intervals for functions
 with complicated derivatives." The American Statistician 67(2):76-81

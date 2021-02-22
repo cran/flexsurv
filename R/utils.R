@@ -81,15 +81,15 @@ rbase <- function(dname, n, ...){
 
 
 ##' Generic function to find restricted mean survival of a distribution
-##' 
+##'
 ##' Generic function to find the restricted mean of a distribution, given the
 ##' equivalent probability distribution function using numeric intergration.
-##' 
+##'
 ##' This function is used by default for custom distributions for which an
 ##' rmst function is not provided.
-##' 
+##'
 ##' This assumes a suitably smooth, continuous distribution.
-##' 
+##'
 ##' @param pdist Probability distribution function, for example,
 ##' \code{\link{pnorm}} for the normal distribution, which must be defined in
 ##' the current workspace.  This should accept and return vectorised parameters
@@ -111,11 +111,11 @@ rbase <- function(dname, n, ...){
 ##' @author Christopher Jackson <chris.jackson@@mrc-bsu.cam.ac.uk>
 ##' @keywords distribution
 ##' @examples
-##' 
+##'
 ##' rmst_lnorm(500, start=250, meanlog=7.4225, sdlog = 1.1138)
 ##' rmst_generic(plnorm, 500, start=250, c(0.025, 0.975), meanlog=7.4225, sdlog = 1.1138)
 ##' # must name the arguments
-##' 
+##'
 ##' @export
 rmst_generic <- function(pdist, t, start=0, matargs=NULL, ...)
 {
@@ -135,54 +135,61 @@ rmst_generic <- function(pdist, t, start=0, matargs=NULL, ...)
 }
 
 ##' Generic function to find quantiles of a distribution
-##' 
+##'
 ##' Generic function to find the quantiles of a distribution, given the
 ##' equivalent probability distribution function.
-##' 
+##'
 ##' This function is used by default for custom distributions for which a
 ##' quantile function is not provided.
-##' 
+##'
 ##' It works by finding the root of the equation \eqn{h(q) = pdist(q) - p = 0}.
 ##' Starting from the interval \eqn{(-1, 1)}, the interval width is expanded by
 ##' 50\% until \eqn{h()} is of opposite sign at either end.  The root is then
 ##' found using \code{\link{uniroot}}.
-##' 
+##'
 ##' This assumes a suitably smooth, continuous distribution.
-##' 
-##' An identical function is provided in the \pkg{msm} package.
-##' 
+##'
 ##' @param pdist Probability distribution function, for example,
 ##' \code{\link{pnorm}} for the normal distribution, which must be defined in
 ##' the current workspace.  This should accept and return vectorised parameters
 ##' and values.  It should also return the correct values for the entire real
 ##' line, for example a positive distribution should have \code{pdist(x)==0}
 ##' for \eqn{x<0}.
+##'
 ##' @param p Vector of probabilities to find the quantiles for.
+##'
 ##' @param matargs Character vector giving the elements of \code{...} which
 ##' represent vector parameters of the distribution.  Empty by default.  When
 ##' vectorised, these will become matrices.  This is used for the arguments
 ##' \code{gamma} and \code{knots} in \code{\link{qsurvspline}}.
+##'
+##' @param scalarargs Character vector naming scalar arguments of the distribution function that cannot be vectorised.  This is used for the arguments \code{scale} and \code{timescale} in \code{\link{qsurvspline}}.
+##'
 ##' @param ...  The remaining arguments define parameters of the distribution
 ##' \code{pdist}.  These MUST be named explicitly.
-##' 
+##'
 ##' This may also contain the standard arguments \code{log.p} (logical; default
 ##' \code{FALSE}, if \code{TRUE}, probabilities p are given as log(p)), and
 ##' \code{lower.tail} (logical; if \code{TRUE} (default), probabilities are P[X
 ##' <= x] otherwise, P[X > x].).
-##' 
+##'
 ##' If the distribution is bounded above or below, then this should contain
 ##' arguments \code{lbound} and \code{ubound} respectively, and these will be
 ##' returned if \code{p} is 0 or 1 respectively.  Defaults to \code{-Inf} and
 ##' \code{Inf} respectively.
+##'
 ##' @return Vector of quantiles of the distribution at \code{p}.
+##'
 ##' @author Christopher Jackson <chris.jackson@@mrc-bsu.cam.ac.uk>
+##'
 ##' @keywords distribution
+##'
 ##' @examples
-##' 
+##'
 ##' qnorm(c(0.025, 0.975), 0, 1)
 ##' qgeneric(pnorm, c(0.025, 0.975), mean=0, sd=1) # must name the arguments
 ##' @export
-qgeneric <- function(pdist, p, matargs=NULL, ...)
+qgeneric <- function(pdist, p, matargs=NULL, scalarargs=NULL, ...)
 {
     args <- list(...)
     if (is.null(args$log.p)) args$log.p <- FALSE
@@ -196,11 +203,13 @@ qgeneric <- function(pdist, p, matargs=NULL, ...)
     ret[p == 1] <- args$ubound
     ## args containing vector params of the distribution (e.g. gamma and knots in dsurvspline)
     args.mat <- args[matargs]
-    args[c(matargs,"lower.tail","log.p","lbound","ubound")] <- NULL
-    ## Other args assumed to contain scalar params of the distribution.
-    ## Replicate all to their maximum length, along with p 
+    ## Arguments that cannot be vectorised
+    args.scalar <- args[scalarargs]
+    args[c(matargs,scalarargs,"lower.tail","log.p","lbound","ubound")] <- NULL
+    ## Other args assumed to contain vectorisable parameters of the distribution.
+    ## Replicate all to their maximum length, along with p
     matlen <- if(is.null(matargs)) NULL else sapply(args.mat, function(x){if(is.matrix(x))nrow(x) else 1})
-    veclen <- sapply(args, length)
+    veclen <- if (is.null(args)) NULL else sapply(args, length)
     maxlen <- max(c(length(p), veclen, matlen))
     for (i in seq(along=args))
         args[[i]] <- rep(args[[i]], length.out=maxlen)
@@ -215,27 +224,22 @@ qgeneric <- function(pdist, p, matargs=NULL, ...)
         else args.mat[[i]] <- matrix(args.mat[[i]], nrow=maxlen, ncol=length(args.mat[[i]]), byrow=TRUE)
     }
     p <- rep(p, length.out=maxlen)
-
     ret[p < 0 | p > 1] <- NaN
     ind <- (p > 0 & p < 1)
     if (any(ind)) {
         hind <- seq(along=p)[ind]
+        n <- length(p[ind])
+        ptmp <- numeric(n)
+        interval <- matrix(rep(c(-1, 1), n), ncol=2, byrow=TRUE)
         h <- function(y) {
-            args <- lapply(args, function(x)x[hind[i]])
-            args.mat <- lapply(args.mat, function(x)x[hind[i],])
-            p <- p[hind[i]]
+            args <- lapply(args, function(x)x[hind])
+            args.mat <- lapply(args.mat, function(x)x[hind,])
+            p <- p[hind]
             args$q <- y
-            args <- c(args, args.mat)
+            args <- c(args, args.mat, args.scalar)
             (do.call(pdist, args) - p)
         }
-        ptmp <- numeric(length(p[ind]))
-        for (i in 1:length(p[ind])) {
-            interval <- c(-1, 1)
-            while (h(interval[1])*h(interval[2]) >= 0) {
-                interval <- interval + c(-1,1)*0.5*(interval[2]-interval[1])
-            }
-            ptmp[i] <- uniroot(h, interval, tol=.Machine$double.eps)$root
-        }
+        ptmp <- rstpm2::vuniroot(h, interval, tol=.Machine$double.eps, extendInt="yes", maxiter=10000)$root
         ret[ind] <- ptmp
     }
     if (any(is.nan(ret))) warning("NaNs produced")
@@ -245,3 +249,72 @@ qgeneric <- function(pdist, p, matargs=NULL, ...)
 
 ## suppresses NOTE from checker about variables created with "assign"
 if(getRversion() >= "2.15.1")  utils::globalVariables(c("ind"))
+
+##' helper function to safely convert a Hessian matrix to covariance matrix
+##'
+##' @param hessian hessian matrix to convert to covariance matrix (must be evaluated at MLE)
+##' @param tol.solve tolerance used for solve()
+##' @param tol.evalues accepted tolerance for negative eigenvalues of the covariance matrix
+##' @param ... arguments passed to Matrix::nearPD
+##'
+##' @importFrom Matrix nearPD
+##' @keywords internal
+.hess_to_cov <- function(hessian, tol.solve = 1e-9, tol.evalues = 1e-5, ...) {
+  if(is.null(tol.solve)) tol.solve <- .Machine$double.eps
+  if(is.null(tol.evalues)) tol.evalues <- 1e-5 
+  # use solve(.) over chol2inv(chol(.)) to get an inverse even if not PD
+  # less efficient but more stable
+  inv_hessian <- solve(hessian, tol = tol.solve)
+  evalues <- eigen(inv_hessian, symmetric = TRUE, only.values = TRUE)$values
+  if (min(evalues) < -tol.evalues)
+    warning(sprintf(
+      "Hessian not positive definite: smallest eigenvalue is %.1e (threshold: %.1e). This might indicate that the optimization did not converge to the maximum likelihood, so that the results are invalid. Continuing with the nearest positive definite approximation of the covariance matrix.",
+      min(evalues), -tol.evalues
+    ))
+  # make sure we return a plain positive definite symmetric matrix
+  as.matrix(Matrix::nearPD(inv_hessian, ensureSymmetry = TRUE, ...)$mat)
+}
+
+
+#' Numerical evaluation of the hessian of a function using numDeriv::hessian
+#'
+#' We perform a quick check about the expected runtime and adjust the
+#' precision accordingly.
+#'
+#' @param f function to compute Hessian for
+#' @param x location to evaluate Hessian at
+#' @param seconds.warning time threshold in seconds to trigger message and
+#'    reduce the number of iterations for Richardson extrapolation of
+#'    numDeriv::hessian
+#' @param default.r default number of iterations (high-precicion recommendation
+#'    of numDeriv)
+#' @param min.r minial number of iteration, must be at least 2,
+#' @param ... further arguments passed to method.args of numDeriv::hessian
+#'
+#' @importFrom numDeriv hessian
+#' @keywords internal
+.hessian <- function(f, x, seconds.warning = 60, default.r = 6, min.r = 2, ...) {
+  # dimensionality of the problem
+  k <- length(x)
+  # estimate evaluation time of f(x)
+  start_time <- Sys.time()
+  for (i in 1:3) f(x)
+    mean_eval_sec <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))/3
+  default_runtime <- mean_eval_sec * (1 + default.r*(k^2 + k))
+  # reduce iterations for Richardson extrapolation
+  if (default_runtime > seconds.warning) {
+          r <- default.r
+    runtime <- default_runtime
+    while ((r > min.r) & (runtime > seconds.warning)) {
+            r <- r - 1
+      runtime <- mean_eval_sec * (1 + r*(k^2 + k))
+    }
+    message(sprintf(
+      "estimated runtime for evaluating the hessian with r=%i is %i minutes, reducing r to %i, estimated runtime is %i minutes",
+      default.r, round(default_runtime/60), r, round(runtime/60)
+    ))
+  } else {
+    r <- default.r
+  }
+  numDeriv::hessian(f, x, method = "Richardson", method.args = list(r = r, ...))
+}

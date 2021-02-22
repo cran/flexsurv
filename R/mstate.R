@@ -1,13 +1,11 @@
 ### FUNCTIONS FOR MULTI-STATE MODELLING 
 
-# in the future:
-#  \pkg{flexsurv} makes the \code{msfit} function generic, defines
-#  the default method to be \code{\link[mstate]{msfit}} from \pkg{mstate},
-#  and adds this new method for flexsurvreg objects.
-#S3method(msfit, default)
-#S3method(msfit, flexsurvreg)
-#msfit <- function(object, ...) UseMethod("msfit")
-#msfit.default <- function(object, ...) mstate::msfit(object, ...)
+is.flexsurvlist <- function(x){
+    is.list(x) &&
+        (length(x) > 0) && 
+            inherits(x[[1]], "flexsurvreg") && 
+                all(sapply(x, inherits, "flexsurvreg"))
+}
 
 form.msm.newdata <- function(x, newdata=NULL, tvar="trans", trans){
     tr <- sort(unique(na.omit(as.vector(trans))))
@@ -107,7 +105,7 @@ form.msm.newdata <- function(x, newdata=NULL, tvar="trans", trans){
 ##' @references Liesbeth C. de Wreede, Marta Fiocco, Hein Putter (2011).
 ##' \pkg{mstate}: An R Package for the Analysis of Competing Risks and
 ##' Multi-State Models. \emph{Journal of Statistical Software}, 38(7), 1-30.
-##' \url{http://www.jstatsoft.org/v38/i07}
+##' \url{https://www.jstatsoft.org/v38/i07}
 ##' 
 ##' Mandel, M. (2013). "Simulation based confidence intervals for functions
 ##' with complicated derivatives." The American Statistician 67(2):76-81
@@ -220,14 +218,11 @@ msfit.flexsurvreg <- function(object, t, newdata=NULL, variance=TRUE, tvar="tran
     res
 }
 
-## Matrix with ntrans rows, npars columns giving transition-specific
-## baseline parameters at given covariate values
-
 
 
 ##' Transition-specific parameters in a flexible parametric multi-state model
 ##' 
-##' Matrix of maximum likelihood estimates of transition-specific parameters in
+##' List of maximum likelihood estimates of transition-specific parameters in
 ##' a flexible parametric multi-state model, at given covariate values.
 ##' 
 ##' 
@@ -238,50 +233,77 @@ msfit.flexsurvreg <- function(object, t, newdata=NULL, variance=TRUE, tvar="tran
 ##' \code{x} can also be a list of \code{\link{flexsurvreg}} models, with one
 ##' component for each permitted transition in the multi-state model, as
 ##' illustrated in \code{\link{msfit.flexsurvreg}}.
+##' 
 ##' @param trans Matrix indicating allowed transitions.  See
 ##' \code{\link{msfit.flexsurvreg}}.
+##' 
 ##' @param newdata A data frame specifying the values of covariates in the
 ##' fitted model, other than the transition number.  See
 ##' \code{\link{msfit.flexsurvreg}}.
+##' 
 ##' @param tvar Variable in the data representing the transition type. Not
 ##' required if \code{x} is a list of models.
-##' @return A matrix with one row for each permitted transition, and one column
-##' for each parameter of the parametric distribution that generates each event
-##' in the multi-state model.
+##' 
+##' @return A list with one component for each permitted transition. Each component
+##' has one element for each parameter of the parametric distribution that generates
+##' the corresponding event in the multi-state model.
+##' 
 ##' @author Christopher Jackson \email{chris.jackson@@mrc-bsu.cam.ac.uk}.
-##' @keywords models,survival
+##' 
+##' @keywords models survival
+##' 
 ##' @export
 pars.fmsm <- function(x, trans, newdata=NULL, tvar="trans")
 {
     if (is.flexsurvlist(x)){
         ntr <- length(x) # number of allowed transitions
         if (ntr != length(na.omit(as.vector(trans)))) stop(sprintf("x is a list of %s flexsurvreg objects, but trans indicates %s transitions", ntr, length(na.omit(as.vector(trans)))))
-        basepar <- matrix(nrow=ntr, ncol=length(x[[1]]$dlist$pars), dimnames=list(NULL,x[[1]]$dlist$pars))
+        basepar <- vector(ntr, mode="list")
         newdata <- as.data.frame(newdata)
         for (i in 1:ntr){
             if (x[[i]]$ncovs==0)
                 X <- matrix(0)
             else {
                 if(nrow(newdata) == 1L) {
-                    X <- form.model.matrix(x[[i]], as.data.frame(newdata))
+                    X <- form.model.matrix(x[[i]], as.data.frame(newdata), na.action=na.omit)
                 } else if(nrow(newdata) == ntr){
-                    X <- form.model.matrix(x[[i]], as.data.frame(newdata[i, ,drop = FALSE]))
+                    X <- form.model.matrix(x[[i]], as.data.frame(newdata[i, ,drop = FALSE]), na.action=na.omit)
                 } else stop(sprintf("`newdata` has %s rows. It must either have one row, or one row for each of the %s allowed transitions",nrow(newdata),ntr))
               }
             beta <- if (x[[i]]$ncovs==0) 0 else x[[i]]$res.t[x[[i]]$covpars,"est"]
-            basepar[i,] <- add.covs(x[[i]], x[[i]]$res.t[x[[i]]$dlist$pars,"est"], beta, X, transform=FALSE)
+            basepar[[i]] <- add.covs(x[[i]], x[[i]]$res.t[x[[i]]$dlist$pars,"est"], beta, X, transform=FALSE)
         }
     } else if (inherits(x, "flexsurvreg")) {
         newdata <- form.msm.newdata(x, newdata=newdata, tvar=tvar, trans=trans)
-        X <- form.model.matrix(x, newdata)   
+        X <- form.model.matrix(x, newdata, na.action=na.omit)
         basepar <- add.covs(x, pars=x$res.t[x$dlist$pars,"est"], beta=x$res.t[x$covpars,"est"], X=X)
+        ntrans <- length(na.omit(as.vector(trans)))
+        basepar <- split(basepar, seq(length=ntrans))
+        basepar <- lapply(basepar, function(y){y <- matrix(y,nrow=1); colnames(y) <- x$dlist$pars; y})
+
     } else
         stop("expected x to be a flexsurvreg object or list of flexsurvreg objects") 
     basepar
 }
 
-## TODO allow time dependent covs when computing the hazard.
 
+
+state_nums <- function(state, object){
+    if (is.character(state)){
+        badstates <- state[! (state %in% attr(object, "statenames"))]
+        if (length(badstates) > 0)
+            stop(paste(badstates,collapse=","), " not found in state names")
+        state <- match(state, attr(object, "statenames"))
+
+    } 
+    state
+}
+
+state_names <- function(state, object){
+    if (is.character(attr(object, "statenames")))
+        state <- attr(object, "statenames")[state]
+    state
+}
 
 
 ##' Transition probability matrix from a fully-parametric, time-inhomogeneous
@@ -332,31 +354,45 @@ pars.fmsm <- function(x, trans, newdata=NULL, tvar="trans")
 ##' permitted transition, as illustrated in \code{\link{msfit.flexsurvreg}}.
 ##' @param trans Matrix indicating allowed transitions.  See
 ##' \code{\link{msfit.flexsurvreg}}.
+##'
 ##' @param t Time or vector of times to predict state occupancy probabilities
 ##' for.
+##'
 ##' @param newdata A data frame specifying the values of covariates in the
 ##' fitted model, other than the transition number.  See
 ##' \code{\link{msfit.flexsurvreg}}.
+##'
+##' @param condstates Instead of the unconditional probability of being in state \eqn{s} at time \eqn{t} given state \eqn{r} at time 0, return the probability conditional on being in a particular subset of states at time \eqn{t}.  This subset is specified in the \code{condstates} argument.
+##'
+##' This is used, for example, in competing risks situations, e.g. if the competing states are death or recovery from a disease, and we want to compute the probability a patient has died, given they have died or recovered.   If these are absorbing states, then as \eqn{t} increases, this converges to the case fatality ratio.  To compute this, set \eqn{t} to a very large number, \code{Inf} will not work. 
+##' 
 ##' @param ci Return a confidence interval calculated by simulating from the
 ##' asymptotic normal distribution of the maximum likelihood estimates.  Turned
 ##' off by default, since this is computationally intensive.  If turned on,
 ##' users should increase \code{B} until the results reach the desired
 ##' precision.
+##' 
 ##' @param tvar Variable in the data representing the transition type. Not
 ##' required if \code{x} is a list of models.
+##' 
 ##' @param sing.inf If there is a singularity in the observed hazard, for
 ##' example a Weibull distribution with \code{shape < 1} has infinite hazard at
 ##' \code{t=0}, then as a workaround, the hazard is assumed to be a large
 ##' finite number, \code{sing.inf}, at this time.  The results should not be
 ##' sensitive to the exact value assumed, but users should make sure by
 ##' adjusting this parameter in these cases.
+##'
 ##' @param B Number of simulations from the normal asymptotic distribution used
 ##' to calculate variances.  Decrease for greater speed at the expense of
 ##' accuracy.
+##' 
 ##' @param cl Width of symmetric confidence intervals, relative to 1.
+##'
+##' @param tidy If TRUE then return the results as a tidy data frame
+##' 
 ##' @param ... Arguments passed to \code{\link{ode}} in \pkg{deSolve}.
-##' @return The transition probability matrix, if \code{t} is of length 1, or a
-##' list of matrices if \code{t} is longer.
+##' 
+##' @return The transition probability matrix, if \code{t} is of length 1.  If \code{t} is longer, return a list of matrices, or a data frame if \code{tidy} is TRUE. 
 ##' 
 ##' If \code{ci=TRUE}, each element has attributes \code{"lower"} and
 ##' \code{"upper"} giving matrices of the corresponding confidence limits.
@@ -364,7 +400,7 @@ pars.fmsm <- function(x, trans, newdata=NULL, tvar="trans")
 ##' @author Christopher Jackson \email{chris.jackson@@mrc-bsu.cam.ac.uk}.
 ##' @seealso \code{\link{pmatrix.simfs}}, \code{\link{totlos.fs}},
 ##' \code{\link{msfit.flexsurvreg}}.
-##' @keywords models,survival
+##' @keywords models survival
 ##' @examples
 ##' 
 ##' # BOS example in vignette, and in msfit.flexsurvreg
@@ -375,37 +411,55 @@ pars.fmsm <- function(x, trans, newdata=NULL, tvar="trans")
 ##' # BOS (state 2)
 ##' pmatrix.fs(bexp, t=c(5,10), trans=tmat)
 ##' @export
-pmatrix.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
-                       tvar="trans", sing.inf=1e+10, B=1000, cl=0.95, ...){
+pmatrix.fs <- function(x, trans=NULL, t=1, newdata=NULL,
+                       condstates = NULL, ci=FALSE,
+                       tvar="trans", sing.inf=1e+10, B=1000, cl=0.95, 
+                       tidy=FALSE, ...){
+    if (is.null(trans)) {
+        if (!is.null(attr(x, "trans"))) trans <- attr(x, "trans")
+        else stop("`trans` not supplied and not found in `x`")
+    }
     ntr <- sum(!is.na(trans))
-    n <- nrow(trans)
+    nst <- nrow(trans)
     dp <- function(t, y, parms, ...){
-        if (is.flexsurvlist(x)) x <- x[[1]] 
-        P <- matrix(y, nrow=n, ncol=n)
-        haz <- numeric(n)
+        P <- matrix(y, nrow=nst, ncol=nst)
+        haz <- numeric(nst)
         for (i in 1:ntr){
+            xi <- if (is.flexsurvlist(x)) x[[i]] else x 
             hcall <- list(x=t)
-            for (j in seq(along=x$dlist$pars))
-                hcall[[x$dlist$pars[j]]] <- parms$par[i,j]
-            haz[i] <- do.call(x$dfns$h, hcall)
+            for (j in seq(along=xi$dlist$pars))
+                hcall[[xi$dlist$pars[j]]] <- parms$par[[i]][j]
+            for (j in seq(along=xi$aux))
+                hcall[[names(xi$aux)[j]]] <- xi$aux[[j]]
+            haz[i] <- do.call(xi$dfns$h, hcall)
         }
         Q <- haz[trans]
         Q[is.na(Q)] <- 0
         Q[is.infinite(Q) & Q>0] <- sing.inf
-        Q <- matrix(Q, nrow=n, ncol=n)
+        Q <- matrix(Q, nrow=nst, ncol=nst)
         diag(Q) <- -rowSums(Q)
         list(P %*% Q)
     }
     nt <- length(t)
     if (nt<1) stop("number of times should be at least one")
     basepar <- pars.fmsm(x=x, trans=trans, newdata=newdata, tvar=tvar)
-    res <- ode(y=diag(n), times=c(0,t), func=dp, parms=list(par=basepar), ...)[-1,-1]
-    res <- lapply(split(res,1:nt), function(x)matrix(x,nrow=n))
+    auxpar <- if (!is.flexsurvlist(x)) x$aux else lapply(x, function(x)x$aux)
+    res <- ode(y=diag(nst), times=c(0,t), func=dp, parms=list(par=basepar, aux=auxpar), ...)[-1,-1]
+    if (is.null(condstates)) condstates <- 1:nst
+    condstates <- state_nums(condstates, x)
+    if (any(condstates > nst)) stop(sprintf("all `condstates` should be in 1 to %s",nst))
+    to_pmatrix <- function(x){
+        res <- matrix(x,nrow=nst,dimnames=dimnames(trans))
+        anyevent <- rowSums(res[,condstates,drop=FALSE])
+        res <- res[,condstates] / anyevent
+    }
+    res <- lapply(split(res,1:nt), to_pmatrix)
     names(res) <- t
     if (ci){
-        resci <- bootci.fmsm(x, B, nt*n*n, match.call(), cl)
-        resl <- lapply(split(resci[1,],rep(1:nt, each=n*n)), function(x)matrix(x,nrow=n))
-        resu <- lapply(split(resci[2,],rep(1:nt, each=n*n)), function(x)matrix(x,nrow=n))
+        resci <- bootci.fmsm(x, B, fn=pmatrix.fs, cl=cl, ci=FALSE, cores=NULL, trans=trans, t=t, newdata=newdata, condstates=condstates, tvar=tvar, sing.inf=sing.inf, tidy=tidy, ...)
+        if (tidy) resci <- resci[,1:(nt*nst*nst),drop=FALSE]
+        resl <- lapply(split(resci[1,],rep(1:nt, each=nst*nst)), function(x)matrix(x,nrow=nst,dimnames=dimnames(trans)))
+        resu <- lapply(split(resci[2,],rep(1:nt, each=nst*nst)), function(x)matrix(x,nrow=nst,dimnames=dimnames(trans)))
         names(resl) <- names(resu) <- t
         for (i in 1:nt){
             attr(res[[i]], "lower") <- resl[[i]]
@@ -413,7 +467,19 @@ pmatrix.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
             class(res[[i]]) <- "fs.msm.est"
         }
     }
-    if(nt==1) res[[1]] else res
+    if (nt==1)
+        res <- res[[1]]
+    if (tidy) {
+        if (is.list(res)) res <- do.call("rbind", res)
+        res <- as.data.frame(res)
+        rownames(res) <- NULL
+        res$start <- rep(1:nst, nt)
+        res$time <- rep(t, each=nst)
+        res
+    }
+    attr(res, "statenames") <- rownames(trans)
+    attr(res, "nst") <- nst
+    res
 }
 
 ## Obtains matrix T(t) of expected times spent in state (col) starting
@@ -492,11 +558,15 @@ pmatrix.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
 ##' finite number, \code{sing.inf}, at this time.  The results should not be
 ##' sensitive to the exact value assumed, but users should make sure by
 ##' adjusting this parameter in these cases.
+##' 
 ##' @param B Number of simulations from the normal asymptotic distribution used
 ##' to calculate variances.  Decrease for greater speed at the expense of
 ##' accuracy.
+##' 
 ##' @param cl Width of symmetric confidence intervals, relative to 1.
+##' 
 ##' @param ... Arguments passed to \code{\link{ode}} in \pkg{deSolve}.
+##' 
 ##' @return The matrix of lengths of stay \eqn{T(t)}, if \code{t} is of length
 ##' 1, or a list of matrices if \code{t} is longer.
 ##' 
@@ -507,10 +577,11 @@ pmatrix.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
 ##' The result also has an attribute \code{P} giving the transition probability
 ##' matrices, since these are unavoidably computed as a side effect.  These are
 ##' suppressed for printing, but can be extracted with \code{attr(...,"P")}.
+##' 
 ##' @author Christopher Jackson \email{chris.jackson@@mrc-bsu.cam.ac.uk}.
 ##' @seealso \code{\link{totlos.simfs}}, \code{\link{pmatrix.fs}},
 ##' \code{\link{msfit.flexsurvreg}}.
-##' @keywords models,survival
+##' @keywords models survival
 ##' @examples
 ##' 
 ##' # BOS example in vignette, and in msfit.flexsurvreg
@@ -530,20 +601,26 @@ pmatrix.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
 ##' # distribution, the "semi-Markov" model there is the same as the Markov
 ##' # model here
 ##' @export
-totlos.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
+totlos.fs <- function(x, trans=NULL, t=1, newdata=NULL, ci=FALSE,
                        tvar="trans", sing.inf=1e+10, B=1000, cl=0.95, ...){
+    if (is.null(trans)) {
+        if (!is.null(attr(x, "trans"))) trans <- attr(x, "trans")
+        else stop("`trans` not supplied and not found in `x`")
+    }
     ntr <- sum(!is.na(trans))
     n <- nrow(trans)
     nsq <- n*n
     dp <- function(t, y, parms, ...){
-        if (is.flexsurvlist(x)) x <- x[[1]] 
         P <- matrix(y[nsq + 1:nsq], nrow=n, ncol=n)
         haz <- numeric(n)
         for (i in 1:ntr){
+            xi <- if (is.flexsurvlist(x)) x[[i]] else x 
+
             hcall <- list(x=t)
-            for (j in seq(along=x$dlist$pars))
-                hcall[[x$dlist$pars[j]]] <- parms$par[i,j]
-            haz[i] <- do.call(x$dfns$h, hcall)
+            for (j in seq(along=xi$dlist$pars))
+                hcall[[xi$dlist$pars[j]]] <- parms$par[[i]][j]
+            hcall <- c(hcall, parms$aux[[i]])
+            haz[i] <- do.call(xi$dfns$h, hcall)
         }
         Q <- haz[trans]
         Q[is.na(Q)] <- 0
@@ -555,13 +632,14 @@ totlos.fs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
     nt <- length(t)
     if (nt<1) stop("number of times should be at least one")
     basepar <- pars.fmsm(x=x, trans=trans, newdata=newdata, tvar=tvar)
+    auxpar <- if (!is.flexsurvlist(x)) x$aux else lapply(x, function(x)x$aux)
     init <- cbind(matrix(0, nrow=n, ncol=n), diag(n))
-    res <- ode(y=init, times=c(0,t), func=dp, parms=list(par=basepar), ...)[-1,-1]
+    res <- ode(y=init, times=c(0,t), func=dp, parms=list(par=basepar,aux=auxpar), ...)[-1,-1]
     res.t <- lapply(split(res,1:nt), function(x)matrix(x[1:nsq],nrow=n))
     res.p <- lapply(split(res,1:nt), function(x)matrix(x[nsq + 1:nsq],nrow=n))
     names(res.t) <- names(res.p) <- t
     if (ci){
-        resci <- bootci.fmsm(x, B, nt*2*n*n, match.call(), cl)
+        resci <- bootci.fmsm(x, B, fn=totlos.fs, attrs="P", cl=cl, ci=FALSE, trans=trans, t=t, newdata=newdata, tvar=tvar, sing.inf=sing.inf, ...)
         tind <- rep(rep(1:nt,each=n*n), 2)
         res.tl <- lapply(split(resci[1,],tind), function(x)matrix(x[1:nsq],nrow=n))
         res.tu <- lapply(split(resci[2,],tind), function(x)matrix(x[1:nsq],nrow=n))
@@ -627,13 +705,6 @@ transient <- function(trans){
     which(apply(trans, 1, function(x)any(!is.na(x))))
 }
 
-is.flexsurvlist <- function(x){
-    is.list(x) &&
-        (length(x) > 0) && 
-            inherits(x[[1]], "flexsurvreg") && 
-                all(sapply(x, inherits, "flexsurvreg"))
-}
-
 ## Handle predictable time-dependent covariates in simulating from
 ## semi-Markov models.  Assume the covariate changes at same rate as
 ## time (e.g. age), but the covariate values used in simulation only
@@ -651,7 +722,7 @@ form.basepars.tcovs <- function(x, transi, # index of allowed transition
     }
     for (i in tcovs) { dat[[i]] <- dat[[i]] + t}
     dat <- as.data.frame(dat)
-    X <- form.model.matrix(x, dat)
+    X <- form.model.matrix(x, dat, na.action=na.omit)
     beta <- if (x$ncovs==0) 0 else x$res.t[x$covpars,"est"]
     basepars.mat <- add.covs(x, x$res.t[x$dlist$pars,"est"], beta, X, transform=FALSE)
     as.list(as.data.frame(basepars.mat))
@@ -700,26 +771,39 @@ form.basepars.tcovs <- function(x, transi, # index of allowed transition
 ##' corresponding to the \code{i}th transition in \code{trans}.  This is a more
 ##' efficient way to fit a multi-state model, but only valid if the parameters
 ##' are different between different transitions.
+##'
 ##' @param trans Matrix indicating allowed transitions.  See
 ##' \code{\link{msfit.flexsurvreg}}.
+##'
 ##' @param t Time, or vector of times for each of the \code{M} individuals, to
 ##' simulate trajectories until.
+##'
 ##' @param newdata A data frame specifying the values of covariates in the
 ##' fitted model, other than the transition number.  See
 ##' \code{\link{msfit.flexsurvreg}}.
+##'
 ##' @param start Starting state, or vector of starting states for each of the
 ##' \code{M} individuals.
+##'
 ##' @param M Number of individual trajectories to simulate.
+##'
 ##' @param tvar Variable in the data representing the transition type. Not
 ##' required if \code{x} is a list of models.
+##'
 ##' @param tcovs Names of "predictable" time-dependent covariates in
 ##' \code{newdata}, i.e. those whose values change at the same rate as time.
 ##' Age is a typical example.  During simulation, their values will be updated
 ##' after each transition time, by adding the current time to the value
 ##' supplied in \code{newdata}.  This assumes the covariate is measured in the
 ##' same unit as time. \code{tcovs} is supplied as a character vector.
+##'
+##' @param tidy If \code{TRUE} then the simulated data are returned as a tidy data frame with one row per simulated transition.  See \code{\link{simfs_bytrans}} for a function to rearrange the data into this format if it was simulated in non-tidy format. 
+##' 
 ##' @param debug Print intermediate outputs: for development use.
-##' @return A list of two matrices named \code{st} and \code{t}.  The rows of
+##' 
+##' @return If \code{tidy=TRUE}, a data frame with one row for each simulated transition, giving the individual ID \code{id}, start state \code{start}, end state \code{end}, transition label \code{trans}, time of the transition since the start of the process (\code{time}), and time since the previous transition (\code{delay}).
+##'
+##' If \code{tidy=FALSE}, a list of two matrices named \code{st} and \code{t}.  The rows of
 ##' each matrix represent simulated individuals.  The columns of \code{t}
 ##' contain the times when the individual changes state, to the corresponding
 ##' states in \code{st}.
@@ -728,23 +812,30 @@ form.basepars.tcovs <- function(x, transi, # index of allowed transition
 ##' times. The last column of \code{t} represents either the time when the
 ##' individual moves to an absorbing state, or right-censoring in a transient
 ##' state at the time given in the \code{t} argument to \code{sim.fmsm}.
+##' 
 ##' @author Christopher Jackson \email{chris.jackson@@mrc-bsu.cam.ac.uk}.
+##' 
 ##' @seealso \code{\link{pmatrix.simfs}},\code{\link{totlos.simfs}}
-##' @keywords models,survival
+##' 
+##' @keywords models survival
+##' 
 ##' @examples
 ##' 
 ##' bexp <- flexsurvreg(Surv(years, status) ~ trans, data=bosms3, dist="exp")
 ##' tmat <- rbind(c(NA,1,2),c(NA,NA,3),c(NA,NA,NA))
 ##' sim.fmsm(bexp, M=10, t=5, trans=tmat)
 ##' @export
-sim.fmsm <- function(x, trans, t, newdata=NULL, start=1, M=10, tvar="trans", tcovs=NULL, debug=FALSE){
+sim.fmsm <- function(x, trans=NULL, t, newdata=NULL, start=1, M=10, tvar="trans", tcovs=NULL, tidy=FALSE, debug=FALSE){
+    if (is.null(trans)) {
+        if (!is.null(attr(x, "trans"))) trans <- attr(x, "trans")
+        else stop("`trans` not supplied and not found in `x`")
+    }
     if (length(t)==1) t <- rep(t, M)
     else if (length(t)!=M) stop("length of t should be 1 or M=",M)
     if (length(start)==1) start <- rep(start, M)
     else if (length(start)!=M) stop("length of start should be 1 or M=",M)
 
-    basepars.mat <- pars.fmsm(x=x, trans=trans, newdata=newdata, tvar=tvar)
-    xbase <- if (is.flexsurvlist(x)) x[[1]] else x
+    basepars.all <- pars.fmsm(x=x, trans=trans, newdata=newdata, tvar=tvar)
 
     nst <- nrow(trans)
     ## TODO only need a max time if model is transient, else if absorbing, can allocate these up front
@@ -766,10 +857,12 @@ sim.fmsm <- function(x, trans, t, newdata=NULL, start=1, M=10, tvar="trans", tco
                 t.trans1 <- matrix(0, nrow=ni, ncol=length(transi))
                 ## simulate times to all potential destination states
                 for (j in seq_along(transi)) {         
+                    xbase <- if (is.flexsurvlist(x)) x[[transi[j]]] else x
                     if (length(tcovs)>0){
                         basepars <- form.basepars.tcovs(x, transi[j], newdata, tcovs, cur.t.out)
                     } else 
-                        basepars <- as.list(as.data.frame(basepars.mat)[transi[j],])
+                        basepars <- as.list(as.data.frame(basepars.all[[transi[j]]]))
+
                     fncall <- c(list(n=ni), basepars, xbase$aux)
                     if (is.null(xbase$dfns$r)) stop("No random sampling function found for this model")
                     t.trans1[,j] <- do.call(xbase$dfns$r, fncall)
@@ -789,7 +882,7 @@ sim.fmsm <- function(x, trans, t, newdata=NULL, start=1, M=10, tvar="trans", tco
                 ## if final simulated state is greater than target time, censor at target time
                 cens <- cur.t.out[inds] > t[inds]
                 cur.t.out[inds][cens] <- t[inds][cens]               
-                cur.st.out[!cens] <- next.state[!cens]
+                cur.st.out[inds][!cens] <- next.state[!cens]
                 done <- todo[inds][cens]
             }
         }
@@ -801,42 +894,147 @@ sim.fmsm <- function(x, trans, t, newdata=NULL, start=1, M=10, tvar="trans", tco
         todo <- setdiff(todo, done)
         if (debug) { cat("\n") }
     }
-    list(st=unname(res.st), t=unname(res.t))
-}    
+    res <- list(st=unname(res.st), t=unname(res.t))
+    attr(res, "trans") <- trans
+    attr(res, "statenames") <- attr(x, "statenames")
+    if (tidy) res <- simfs_bytrans(res)
+    res  # TODO set S3 class and adapt methods 
+}
 
-### Generic CIs for multi-state output functions.
-### Replace the parameters in the fitted model object with a draw from the MVN distribution of the MLEs
-### Then calls the output function again on this tweaked model object, with ci=FALSE. Repeat B times.
 
-bootci.fmsm <- function(x, B, ncols, fncall, cl){
-    res.rep <- array(NA_real_, dim=c(B, ncols))
-    fncall$ci <- FALSE
+
+
+##' Reformat simulated multi-state data with one row per simulated transition 
+##'
+##' @param simfs Output from \code{\link{sim.fmsm}} representing simulated histories from a multi-state model.
+##'
+##' @return Data frame with four columns giving transition start state, transition end state, transition name and the time taken by the transition.
+##'
+##' @export
+##' 
+simfs_bytrans <- function(simfs){
+    ## TODO check for simfs having proper attributes 
+    trans <- attr(simfs, "trans")
+    ## all possible starting states 
+    start <- which(apply(trans, 1, function(x)any(!is.na(x))))
+    suball <- NULL
+    for (i in seq_along(start)){
+        subi <- NULL
+        ## all possible end states for each start state
+        endi <- which(!is.na(trans[start[i],]))
+        for (j in 1:(ncol(simfs$st)-1)){
+            sub <- (simfs$st[,j] == start[i] & simfs$st[,j+1] %in% endi)
+            subj <- data.frame(end = simfs$st[sub,j+1],
+                               time = simfs$t[sub,j+1],
+                               delay = simfs$t[sub,j+1] - simfs$t[sub,j],
+                               id = which(sub))
+            subi <- rbind(subi, subj)
+        }
+        subi$start <- start[i]
+        suball <- rbind(suball, subi)
+    }
+    suball$start <- state_names(suball$start, simfs)
+    suball$end <- state_names(suball$end, simfs)
+    suball$trans <- paste(suball$start, suball$end, sep=" - ")
+    rownames(suball) <- NULL
+    res <- suball[,c("id","start","end","trans","time","delay")]
+    attr(res, "trans") <- trans
+    attr(res, "statenames") <- attr(simfs, "statenames")
+    res[order(res$id),]
+}
+
+
+##' Bootstrap confidence intervals for flexsurv output functions
+##'
+##' Calculate a confidence interval for a model output by repeatedly replacing the parameters in a fitted model object with a draw from the multivariate normal distribution of the maximum likelihood estimates, then recalculating the output function.
+##'
+##' @param x Output from \code{\link{flexsurvreg}} or
+##' \code{\link{flexsurvspline}}, representing a fitted survival model object.  Or a list of such objects, defining a multi-state model.
+##'
+##' @param B Number of parameter draws to use
+##'
+##' @param fn Function to bootstrap the results of.  It must have an argument named `code{x} giving a fitted flexsurv model object.  This may return a value with any format, e.g. list, matrix or vector, as long as it can be converted to a numeric vector with \code{unlist}.   See the example below. 
+##'
+##' @param attrs Any attributes of the value returned from \code{fn} which we want confidence intervals for.  These will be unlisted, if possible, and appended to the result vector. 
+##'
+##' @param sample If \code{TRUE} then the bootstrap sample itself is returned.  If \code{FALSE} then the quantiles of the sample are returned giving a confidence interval. 
+##' 
+##' @param cl Width of symmetric confidence interval, by default 0.95 
+##'
+##' @param cores Number of cores to use for parallel processing.
+##'
+##' @param ... Additional arguments to pass to \code{fn}.
+##'
+##' @return A matrix with two rows, giving the upper and lower confidence limits respectively.  Each row is a vector of the same length as the unlisted result of the function corresponding to \code{fncall}.
+##'
+##' @examples
+##'
+##' ## How to use bootci.msm
+##' 
+##' ## Write a function with one argument called x giving a fitted model,
+##' ## and returning some results of the model.  The results may be in any form.   
+##'
+##' tmat <- rbind(c(NA,1,2),c(NA,NA,3),c(NA,NA,NA))
+##' bexp <- flexsurvreg(Surv(Tstart, Tstop, status) ~ trans, data=bosms3, dist="exp")
+##' 
+##' summfn <- function(x, t){
+##'  resp <-  pmatrix.fs(x, trans=tmat, t=t)
+##'  rest <- totlos.fs(x, trans=tmat, t=t)
+##'  list(resp, rest)
+##' }
+##'
+##' ## Use bootci.msm to obtain the confidence interval
+##' ## The matrix columns are in the order of the unlisted results of the original
+##' ## summfn.  You will have to rearrange them into the format that you want.
+##' ## If summfn has any extra arguments, in this case \code{t}, make sure they are
+##' ## passed through via the ... argument to bootci.fmsm
+##'
+##' bootci.fmsm(bexp, B=3, fn=summfn, t=10)
+##' bootci.fmsm(bexp, B=3, fn=summfn, t=5)
+##'
+##' @export
+bootci.fmsm <- function(x, B, fn, cl=0.95, attrs=NULL, cores=NULL, sample=FALSE, ...){
+    if (is.null(cores) || cores==1) parallel <- FALSE else parallel <- TRUE
     if (is.flexsurvlist(x)){
         sim <- vector("list", length(x))
         for (j in seq_along(x)){
             sim[[j]] <- normboot.flexsurvreg(x=x[[j]], B=B, raw=TRUE, transform=TRUE)
         }
-        for (i in 1:B){
-            x.rep <- x
-            for (j in seq_along(x))
-                x.rep[[j]]$res.t[,"est"] <- sim[[j]][i,]
-            fncall$x <- x.rep
-            resi <- eval(fncall)
-            ## "P" attribute needed for totlos.fs. need to extend if ever return any other results as attributes.
-            res.rep[i,] <- c(unlist(resi), unlist(attr(resi, "P")))
-        }
     } else {
         sim <- normboot.flexsurvreg(x=x, B=B, raw=TRUE, transform=TRUE)
-        for (i in 1:B){
-            x.rep <- x
-            x.rep$res.t[,"est"] <- sim[i,]
-            fncall$x <- x.rep
-            resi <- eval(fncall)
-            res.rep[i,] <- c(unlist(resi), unlist(attr(resi, "P")))
-        }
     }
-    resci <- apply(res.rep, 2, quantile, c((1-cl)/2, 1 - (1-cl)/2))
-    resci
+
+    boot_fn <- function(i, fn, ...){
+        x.rep <- x
+        if (is.flexsurvlist(x)){
+            for (j in seq_along(x))
+                x.rep[[j]]$res.t[,"est"] <- sim[[j]][i,]
+        } else
+            x.rep$res.t[,"est"] <- sim[i,]
+        args <- list(...)
+        args$x <- x.rep
+        resi <- do.call(fn, args)
+        resivec <- unlist(resi)
+        if (!is.numeric(resivec)) stop("boot_fn returns a non-numeric result")
+        c(resivec, unlist(attributes(resi)[attrs]))
+    }
+    if (parallel) {
+        cid <- parallel::makeCluster(cores)
+        parallel::clusterExport(cl=cid, varlist=ls(.GlobalEnv))
+        res.rep.list <- parallel::parLapply(cid, seq_len(B), boot_fn, fn=fn, ...)
+        parallel::stopCluster(cid)
+        res.rep <- do.call("rbind", res.rep.list)
+    } else {
+        res.rep <- vector(B, mode="list")
+        for (i in 1:B){
+            res.rep[[i]] <- boot_fn(i,fn,...)
+        }
+        res.rep <- do.call(rbind, lapply(res.rep, as.numeric))
+    }
+    if (!sample)
+        res <- apply(res.rep, 2, quantile, c((1-cl)/2, 1 - (1-cl)/2), na.rm=TRUE)
+    else res <- res.rep
+    res
 }
 
 
@@ -895,10 +1093,15 @@ bootci.fmsm <- function(x, B, ncols, fncall, cl){
 ##' @param M Number of individuals to simulate in order to approximate the
 ##' transition probabilities.  Users should adjust this to obtain the required
 ##' precision.
+##' 
 ##' @param B Number of simulations from the normal asymptotic distribution used
-##' to calculate variances.  Decrease for greater speed at the expense of
+##' to calculate confidence limits.  Decrease for greater speed at the expense of
 ##' accuracy.
+##' 
 ##' @param cl Width of symmetric confidence intervals, relative to 1.
+##'
+##' @param cores Number of processor cores used when calculating confidence limits bu repeated simulation.  The default uses single-core processing. 
+##' 
 ##' @return The transition probability matrix.  If \code{ci=TRUE}, there are
 ##' attributes \code{"lower"} and \code{"upper"} giving matrices of the
 ##' corresponding confidence limits.  These are formatted for printing but may
@@ -907,7 +1110,7 @@ bootci.fmsm <- function(x, B, ncols, fncall, cl){
 ##' @seealso
 ##' \code{\link{pmatrix.fs}},\code{\link{sim.fmsm}},\code{\link{totlos.simfs}},
 ##' \code{\link{msfit.flexsurvreg}}.
-##' @keywords models,survival
+##' @keywords models survival
 ##' @examples
 ##' 
 ##' # BOS example in vignette, and in msfit.flexsurvreg
@@ -927,7 +1130,7 @@ bootci.fmsm <- function(x, B, ncols, fncall, cl){
 ##' # Markov model.
 ##' @export
 pmatrix.simfs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
-                          tvar="trans", tcovs=NULL, M=100000, B=1000, cl=0.95)
+                          tvar="trans", tcovs=NULL, M=100000, B=1000, cl=0.95, cores=NULL)
 {
     n <- nrow(trans)
     res <- matrix(0, nrow=n, ncol=n)
@@ -939,7 +1142,7 @@ pmatrix.simfs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
         res[i,] <- prop.table(table(factor(last.st, levels=seq_len(n))))
     }
     if (ci){
-        resci <- bootci.fmsm(x, B, n*n, match.call(), cl)
+        resci <- bootci.fmsm(x, B, fn=pmatrix.simfs, ci=FALSE, cl=cl, cores=cores, trans=trans, t=t, newdata=newdata, tvar=tvar, tcovs=tcovs, M=M)
         resl <- matrix(resci[1,], nrow=n)
         resu <- matrix(resci[2,], nrow=n)
         attr(res, "lower") <- resl
@@ -1013,13 +1216,16 @@ pmatrix.simfs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
 ##' to calculate variances.  Decrease for greater speed at the expense of
 ##' accuracy.
 ##' @param cl Width of symmetric confidence intervals, relative to 1.
+##'
+##' @param cores Number of processor cores used when calculating confidence limits bu repeated simulation.  The default uses single-core processing. 
+##'
 ##' @return The expected total time spent in each state (or group of states
 ##' given by \code{group}) up to time \code{t}, and corresponding confidence
 ##' intervals if requested.
 ##' @author Christopher Jackson \email{chris.jackson@@mrc-bsu.cam.ac.uk}.
 ##' @seealso
 ##' \code{\link{pmatrix.simfs}},\code{\link{sim.fmsm}},\code{\link{msfit.flexsurvreg}}.
-##' @keywords models,survival
+##' @keywords models survival
 ##' @examples
 ##' 
 ##' # BOS example in vignette, and in msfit.flexsurvreg
@@ -1032,7 +1238,7 @@ pmatrix.simfs <- function(x, trans, t=1, newdata=NULL, ci=FALSE,
 ##' totlos.simfs(bexp, t=1000, trans=tmat)
 ##' @export
 totlos.simfs <- function(x, trans, t=1, start=1, newdata=NULL, ci=FALSE,
-                          tvar="trans", tcovs=NULL, group=NULL, M=100000, B=1000, cl=0.95)
+                          tvar="trans", tcovs=NULL, group=NULL, M=100000, B=1000, cl=0.95, cores=NULL)
 {
     if (length(t)>1) stop("\"t\" must be a single number")
     sim <- sim.fmsm(x=x, trans=trans, t=t, newdata=newdata,
@@ -1047,7 +1253,7 @@ totlos.simfs <- function(x, trans, t=1, start=1, newdata=NULL, ci=FALSE,
         res <- tapply(res, group, sum)
     }
     if (ci){
-        resci <- bootci.fmsm(x, B, length(res), match.call(), cl)
+        resci <- bootci.fmsm(x, B, fn=totlos.simfs, ci=FALSE, cl=cl, cores=cores, trans=trans, t=t, start=start, newdata=newdata, tvar=tvar, tcovs=tcovs, group=group, M=M)
         resl <- resci[1,]
         resu <- resci[2,]
         names(resl) <- names(resu) <- t
@@ -1058,3 +1264,262 @@ totlos.simfs <- function(x, trans, t=1, start=1, newdata=NULL, ci=FALSE,
     }
     res
 }
+
+
+
+
+check_trans <- function(trans, flist){
+    if (!is.matrix(trans)) stop("`trans` should be a matrix")
+    if (!is.numeric(trans)) stop("`trans` should be numeric")
+    if (nrow(trans) != ncol(trans)) stop("`trans should be a square matrix")
+    ntrans <- length(na.omit(as.vector(trans)))
+    if (ntrans != length(flist))
+        stop(sprintf("`trans` has %s numeric entries, but `flist` is of length %s. These should match and equal the number of transitions"))
+}
+
+
+default_statenames <- function(trans){
+    statenames <- rownames(trans)
+    if (is.null(statenames))
+        statenames <- colnames(trans)
+    nstates <- nrow(trans)
+    if (is.null(statenames))
+        statenames <- paste("State", 1:nstates)
+    statenames
+}
+
+default_transnames <- function(flist, trans){
+    statenames <- default_statenames(trans)
+    res <- names(flist)
+    if (is.null(res)){
+        tid <- trans[!is.na(trans)]
+        from <- statenames[row(trans)[!is.na(trans)]]
+        to <- statenames[col(trans)[!is.na(trans)]]
+        res <- sprintf("%s - %s",from,to)[order(tid)]
+    }
+    res
+}
+        
+##' Construct a multi-state model from a set of parametric survival models
+##'
+##' @param ... Objects returned by \code{\link{flexsurvreg}} or
+##'   \code{\link{flexsurvspline}} representing fitted survival models.
+##'
+##' @param trans A matrix of integers specifying which models correspond to
+##'   which transitions.  The \eqn{r,s} entry is \code{i} if the \eqn{i}th
+##'   argument specified in \code{...} is the model for the state \eqn{r} to
+##'   state \eqn{s} transition.  The entry should be \code{NA} if the 
+##'   transition is disallowed. 
+##'
+##' @return A list containing the objects given in \code{...}, and with
+##'   attributes \code{"trans"} and \code{"statenames"} defining the transition
+##'   structure matrix and state names, and with list components named to
+##'   describe the transitions they correspond to.  If any of the arguments in
+##'   \code{...} are named, then these are used to define the transition names,
+##'   otherwise default names are chosen based on the state names.
+##'
+##' @export
+fmsm <- function(..., trans){
+    flist <- list(...)
+    if (!is.flexsurvlist(flist))
+        stop("extra arguments should all be `flexsurvreg` objects")
+    res <- flist
+    statenames <- default_statenames(trans)
+    rownames(trans) <- colnames(trans) <- statenames
+    check_trans(trans, res)
+    names(res) <- default_transnames(res, trans)
+    attr(res, "trans") <- trans
+    attr(res, "statenames") <- statenames
+    class(res) <- "fmsm"  # note sim.fmsm is named inappropriately as it's not a S3 ethod 
+    res
+}
+
+##' @export
+print.fmsm <- function(x, ...){
+    for (i in seq_along(x)){
+        cat(names(x)[i], "\n")
+        print(x[[i]]$call)
+        if (i < length(x)) cat("\n")
+    }
+}
+
+##' @export
+AIC.fmsm <- function(object,...,k=2){
+    nmods <- length(object)
+    aics <- numeric(nmods)
+    for (i in 1:nmods){
+        aics[i] <- AIC(object[[i]],...,k=k)
+    }
+    sum(aics)
+}
+
+nextstates <- function(x, fromstate){
+    trans <- attr(x,"trans")
+    colnames(trans)[!is.na(trans[fromstate,])]
+}
+
+
+
+simfinal_fmsm_noci <- function(x, newdata=NULL, t=1000, M=100000, probs=c(0.025, 0.5, 0.975)){
+    ncovvals <- if (is.null(newdata)) 1 else nrow(newdata)
+    simfs <- vector(ncovvals, mode="list")
+    for (i in 1:ncovvals){
+        nd <- if (is.null(newdata)) NULL else newdata[i,,drop=FALSE]
+        simfs[[i]] <- sim.fmsm(x, newdata=nd, t=t, M=M, tidy=TRUE)
+    }
+    rest <- vector(ncovvals, mode="list")
+    statenames <- names(absorbing(attr(x,"trans")))
+    for (i in 1:ncovvals){
+        sf <- simfs[[i]]
+        abs <- sf$end %in% statenames
+        finaldat <- sf[abs,,drop=FALSE]
+        means <- data.frame(state=statenames, 
+                            val=tapply(finaldat$time, finaldat$end, mean)[statenames], 
+                            quantity="mean")
+        probsu <- data.frame(state=statenames, 
+                            val=as.numeric(prop.table(table(finaldat$end))[statenames]), 
+                            quantity="prob")
+        quants <- tapply(finaldat$time, finaldat$end, quantile, probs)
+        quants <-  quants[statenames]
+        quants <- as.data.frame(do.call("rbind",quants))
+        qnames <- colnames(quants)
+        quants$state <- statenames
+        quants <-  tidyr::pivot_longer(quants, cols=c(all_of(qnames)), 
+                                       names_to="quantity", 
+                                       values_to="val")
+        rest[[i]] <- quants %>% 
+            dplyr::full_join(means,by=c("state","quantity","val")) %>% 
+            dplyr::full_join(probsu,by=c("state","quantity","val"))
+        rest[[i]] <- newdata[i,,drop=FALSE] %>%
+            tidyr::crossing(rest[[i]])       
+    }
+    do.call("rbind",rest)
+}  
+
+##' Simulate and summarise final outcomes from a flexible parametric multi-state
+##' model
+##'
+##' Estimates the probability of each final outcome ("absorbing" state), and the
+##' mean and quantiles of the time to that outcome for people who experience it,
+##' by simulating a large sample of individuals from the model.  This can be used
+##' for both Markov and semi-Markov models.
+##' 
+##' For a competing risks model, i.e. a model defined by just one starting state
+##' and multiple destination states representing competing events, this returns
+##' the probability governing the next event that happens, and the distribution 
+##' of the time to each event conditionally on that event happening. 
+##'
+##'
+##' @param x Object returned by \code{\link{fmsm}}, representing a multi-state
+##'   model formed from transition-specific time-to-event models fitted by
+##'   \code{\link{flexsurvreg}}.
+##'
+##' @param newdata Data frame of covariate values, with one column per
+##'   covariate, and one row per alternative value.
+##'
+##' @param probs Quantiles to calculate, by default, \code{c(0.025, 0.5, 0.975)}
+##'   for a median and 95\% interval.
+##'
+##' @param t Maximum time to simulate to, passed to \code{\link{sim.fmsm}}, so
+##'   that the summaries are taken from the subset of individuals in the
+##'   simulated data who are in the absorbing state at this time.
+##'
+##' @param M Number of individuals to simulate.
+##'
+##' @param B Number of simulations to use to calculate 95\% confidence intervals
+##'   based on the asymptotic normal distribution of the basic parameter
+##'   estimates. If \code{B=0} then no intervals are calculated.
+##'
+##' @param cores Number of processor cores to use.  If \code{NULL} (the default)
+##'   then a single core is used.
+##'
+##' @return A tidy data frame with rows for each combination of covariate values
+##'   and quantity of interest.  The quantity of interest is identified in the
+##'   column \code{quantity}, and the value of the quantity is in \code{val},
+##'   with additional columns \code{lower} and \code{upper} giving 95\%
+##'   confidence intervals for the quantity, if \code{B>0}.
+##'
+##' @export
+simfinal_fmsm <- function(x, newdata=NULL, probs=c(0.025, 0.5, 0.975), 
+                         t=1000, M=100000, B=0, cores=NULL){
+    if (x[[1]]$ncoveffs > 0 & is.null(newdata))
+        stop("`newdata` should be supplied if there are covariates in the model")
+    ests <- simfinal_fmsm_noci(x=x, newdata=newdata, probs=probs, t=t, M=M)
+    valfn <- function(x, newdata=NULL, t, M, probs){ 
+        simfinal_fmsm_noci(x=x, newdata=newdata, t=t, M=M, probs=probs)$val
+    }
+    if (B>0){
+        bci <- bootci.fmsm(x, fn=valfn, newdata=newdata, 
+                           t=t, M=M, B=B, cores=cores, probs=probs)
+        ests$lower <- bci["2.5%",]
+        ests$upper <- bci["97.5%",]
+    }
+    ests
+}
+
+
+
+pfinal_fmsm_noci <- function(x, newdata=NULL, fromstate, maxt=100000){
+    tmat <- attr(x, "trans")
+    if (!(fromstate %in% rownames(tmat))) 
+        stop(sprintf("State `%s` not found in rownames(attr(x,\"trans\"))",fromstate))
+    tostates <- colnames(tmat)[!is.na(tmat[fromstate,])]
+    ncovvals <- if (is.null(newdata)) 1 else nrow(newdata)
+    pres <- as.data.frame(matrix(nrow=ncovvals, ncol=length(tostates)))
+    colnames(pres) <- tostates
+    if (length(tostates)==0) stop(sprintf("No destination states possible from state %s",fromstate))
+    for (i in 1:ncovvals){
+        nd <- if (is.null(newdata)) NULL else newdata[i,,drop=FALSE]
+        pm <- pmatrix.fs(x, newdata=nd, condstates=tostates, t=maxt, tidy=TRUE)[1,tostates]
+        pres[i,tostates]  <- unlist(pm)
+    }
+    if (!is.null(newdata)) pres <- cbind(newdata, pres)
+    pres
+}
+
+##' Probabilities of final states in a flexible parametric competing risks model
+##'
+##' This requires the model to be Markov, and is not valid for semi-Markov
+##' models, as it works by wrapping \code{\link{pmatrix.fs}} to calculate the
+##' transition probability over a very large time.    As it also works on a
+##' \code{fmsm} object formed from transition-specific time-to-event models,
+##' it therefore only works on competing risks models, defined by just one starting
+##' state with multiple destination states representing competing events. 
+##' For these models, this function returns the probability governing which
+##' competing event happens next.   However this function simply wraps \code{pmatrix.fs},
+##' so for other models, \code{pmatrix.fs} or \code{pmatrix.simfs} can be used with a
+##' large forecast time \code{t}. 
+##'
+##' @inheritParams simfinal_fmsm
+##' 
+##' @param fromstate State from which to calculate the transition probability
+##'   state.  This should refer to the name of a row of the transition matrix
+##'   \code{attr(x,trans)}.
+##'
+##' @param maxt Large time to use for forecasting final state probabilities.
+##'   The transition probability from zero to this time is used.  Note
+##'   \code{Inf} will not work. The default is \code{100000}.
+##' 
+##' @return A data frame with one row per covariate value and destination state,
+##'   giving the state in column \code{state}, and probability in column
+##'   \code{val}. Additional columns \code{lower} and \code{upper} for the
+##'   confidence limits are returned if \code{B=0}.
+##'
+##' @export
+pfinal_fmsm <- function(x, newdata=NULL, fromstate, maxt=100000, B=0, cores=NULL){
+    ests <- pfinal_fmsm_noci(x, newdata, fromstate=fromstate, maxt=maxt)
+    tostates <- nextstates(x, fromstate)
+    ests <- pivot_longer(ests, all_of(tostates), names_to="state", values_to="val")
+    ests$state <- factor(ests$state, levels=tostates)
+    ests <- ests[order(ests$state),]
+    if (B>0){
+        bci <- bootci.fmsm(x, fn=pfinal_fmsm_noci, newdata=newdata, 
+                           fromstate=fromstate, maxt=maxt, B=B, cores=cores)
+        if (!is.null(newdata))
+            bci <- bci[,-seq_along(unlist(newdata)),drop=FALSE]
+        ests$lower <- bci["2.5%",]
+        ests$upper <- bci["97.5%",]
+    }
+    ests
+}
+

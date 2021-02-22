@@ -36,8 +36,6 @@ test_that("custom function in summary.flexsurvreg",{
 
 })
 
-data(lung)
-
 test_that("newdata in summary.flexsurvreg: dynamic cut, unknown factor level",{
     fl2a <- flexsurvspline(Surv(time, event = status) ~ factor(sex) + cut(age,c(0,56,69,100)), data = lung, k = 2)
     su <- summary(fl2a, newdata = lung, B = 0)
@@ -56,6 +54,16 @@ test_that("newdata in summary.flexsurvreg: extra covariates in the list",{
     su1 <- summary(fl3, newdata = lung, B = 0)[[1]][1:5,]
     su2 <- summary(fl3, newdata = lung[1,], B = 0)[[1]][1:5,]
     expect_equal(su1, su2)
+})
+
+
+test_that("newdata in summary.flexsurvreg: are missing values passed through or dropped",{
+    luna <- lung[1:5,]
+    luna$age[1] <- NA
+    summ <- summary(fl3, newdata = luna, B = 0, t=100, tidy=TRUE)
+    expect_true(is.na(summ$est[1]))
+    summ <- summary(fl3, newdata = luna, B = 0, t=100, tidy=TRUE, na.action=na.omit)
+    expect_true(!is.na(summ$est[1]))
 })
 
 test_that("newdata in summary.flexsurvreg: missing covariates, factor not supplied as factor",{

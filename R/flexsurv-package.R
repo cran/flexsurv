@@ -71,6 +71,11 @@
 ##' @importFrom Rcpp sourceCpp
 ##' @useDynLib flexsurv, .registration = TRUE
 ##' @import stats
+##' @importFrom magrittr "%>%"
+##' @importFrom dplyr mutate rename full_join
+##' @importFrom tidyr pivot_longer pivot_wider
+##' @importFrom tidyselect all_of num_range
+##' @importFrom rlang .data
 ##' @importFrom mstate msfit probtrans
 ##' @importFrom graphics plot lines
 ##' @importFrom survival Surv survfit coxph survreg survreg.control

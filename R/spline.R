@@ -1,25 +1,33 @@
 ##' Royston/Parmar spline survival distribution
 ##' 
-##' Probability density, distribution, quantile, random generation, hazard
+##' Probability density, distribution, quantile, random generation, hazard, 
 ##' cumulative hazard, mean and restricted mean functions for the Royston/Parmar
-##' spline model.
+##' spline model.   These functions have all parameters of the distribution collecte together in a single argument \code{gamma}.  For the equivalent functions with one argument per parameter, see \code{\link{Survsplinek}}. 
 ##' 
 ##' @aliases dsurvspline psurvspline qsurvspline rsurvspline
 ##' hsurvspline Hsurvspline mean_survspline rmst_survspline
+##' 
 ##' @param x,q,t Vector of times.
+##'
 ##' @param p Vector of probabilities.
+##'
 ##' @param n Number of random numbers to simulate.
+##'
 ##' @param gamma Parameters describing the baseline spline function, as
 ##' described in \code{\link{flexsurvspline}}.  This may be supplied as a
 ##' vector with number of elements equal to the length of \code{knots}, in
 ##' which case the parameters are common to all times.  Alternatively a matrix
 ##' may be supplied, with rows corresponding to different times, and columns
 ##' corresponding to \code{knots}.
+##'
 ##' @param start Optional left-truncation time or times.  The returned
 ##' restricted mean survival will be conditioned on survival up to
 ##' this time.
+##'
 ##' @param beta Vector of covariate effects (deprecated).
+##'
 ##' @param X Matrix of covariate values (deprecated).
+##'
 ##' @param knots Locations of knots on the axis of log time, supplied in
 ##' increasing order.  Unlike in \code{\link{flexsurvspline}}, these include
 ##' the two boundary knots.  If there are no additional knots, the boundary
@@ -81,12 +89,13 @@ NULL
 ## TODO put in h,H functions
 ## TODO more special value handling
 
-dbase.survspline <- function(q, gamma, knots, scale, deriv=FALSE){
+dbase.survspline <- function(q, gamma, knots, scale, offset=0, deriv=FALSE){
     if(!is.matrix(gamma)) gamma <- matrix(gamma, nrow=1)
     if(!is.matrix(knots)) knots <- matrix(knots, nrow=1)
     lg <- nrow(gamma)
     nret <- max(length(q), lg)
     q <- rep(q, length=nret)
+    offset <- rep(offset, length=nret)
 
     gamma <- apply(gamma, 2, rep, length=nret)
     knots <- apply(knots, 2, rep, length=nret)
@@ -106,9 +115,10 @@ dbase.survspline <- function(q, gamma, knots, scale, deriv=FALSE){
     }
     ind <- !is.na(q) & q > 0
     q <- q[ind]
+    offset <- offset[ind]
     gamma <- gamma[ind,,drop=FALSE]
     knots <- knots[ind,,drop=FALSE]
-    list(ret=ret, gamma=gamma, q=q, scale=scale, ind=ind, knots=knots)
+    list(ret=ret, gamma=gamma, q=q, scale=scale, ind=ind, knots=knots, offset=offset)
 }
 
 dlink <- function(scale){
@@ -129,9 +139,10 @@ ldlink <- function(scale){
 
 ## probability density function.
 
+##' @rdname Survspline
 ##' @export
 dsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, log=FALSE){
-    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale)
+    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale, offset=offset)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     if (any(ind)){
         eta <- rowSums(basis(knots, tsfn(q, timescale)) * gamma) + as.numeric(X %*% beta) + offset # log cumulative hazard/odds
@@ -177,14 +188,16 @@ Slink <- function(scale){
 
 ## cumulative distribution function
 
+##' @rdname Survspline
 ##' @export
 psurvspline <- function(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, lower.tail=TRUE, log.p=FALSE){
-    d <- dbase.survspline(q=q, gamma=gamma, knots=knots, scale=scale)
+    d <- dbase.survspline(q=q, gamma=gamma, knots=knots, scale=scale, offset=offset)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     if (any(ind)){
         eta <- rowSums(basis(knots, tsfn(q,timescale)) * gamma) + as.numeric(X %*% beta) + offset
         surv <- Slink(scale)(eta)
         ret[ind] <- as.numeric(1 - surv)
+
         ret[ind][q==0] <- 0
         ret[ind][q==Inf] <- 1
     }
@@ -193,13 +206,15 @@ psurvspline <- function(q, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", 
     ret
 }
 
+##' @rdname Survspline
 ##' @export
 qsurvspline <- function(p, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, lower.tail=TRUE, log.p=FALSE){
     if (log.p) p <- exp(p)
     if (!lower.tail) p <- 1 - p
-    qgeneric(psurvspline, p=p, matargs=c("gamma","knots"), gamma=gamma, beta=beta, X=X, knots=knots, scale=scale, timescale=timescale, offset=offset)
+    qgeneric(psurvspline, p=p, matargs=c("gamma","knots"), scalarargs=c("scale","timescale"), gamma=gamma, beta=beta, X=X, knots=knots, scale=scale, timescale=timescale, offset=offset)
 }
 
+##' @rdname Survspline
 ##' @export
 rsurvspline <- function(n, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
     if (length(n) > 1) n <- length(n)
@@ -218,10 +233,11 @@ Hlink <- function(scale){
 
 ## cumulative hazard function
 
+##' @rdname Survspline
 ##' @export
 Hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
     match.arg(scale, c("hazard","odds","normal"))
-    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale)
+    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale, offset=offset)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     if (any(ind)){
         eta <- rowSums(basis(knots, tsfn(q,timescale)) * gamma) + as.numeric(X %*% beta) + offset
@@ -240,11 +256,12 @@ hlink <- function(scale){
 
 ## hazard function
 
+##' @rdname Survspline
 ##' @export
 hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
 ## value for x=0?  currently zero, should it be limit as x reduces to 0? 
     match.arg(scale, c("hazard","odds","normal"))
-    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale)
+    d <- dbase.survspline(q=x, gamma=gamma, knots=knots, scale=scale, offset=offset)
     for (i in seq_along(d)) assign(names(d)[i], d[[i]])
     if (any(ind)){
         eta <- rowSums(basis(knots, tsfn(q,timescale)) * gamma) + as.numeric(X %*% beta) + offset
@@ -254,11 +271,13 @@ hsurvspline <- function(x, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", 
     as.numeric(ret)
 }
 
+##' @rdname Survspline
 ##' @export
 rmst_survspline = function(t, gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0, start=0){
   rmst_generic(psurvspline, t, start=start, gamma=gamma, knots=knots, beta=beta, X=X, scale=scale, timescale=timescale, offset=offset)
 }
 
+##' @rdname Survspline
 ##' @export
 mean_survspline = function(gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", timescale="log", offset=0){
   rmst_generic(psurvspline, Inf, start=0, gamma=gamma, knots=knots, beta=beta, X=X, scale=scale, timescale=timescale, offset=offset)
@@ -273,9 +292,12 @@ mean_survspline = function(gamma, beta=0, X=0, knots=c(-10,10), scale="hazard", 
 ##' The exact formula for the basis is given in \code{\link{flexsurvspline}}.
 ##' 
 ##' @aliases basis dbasis fss dfss
+##' 
 ##' @param knots Vector of knot locations in increasing order, including the
 ##' boundary knots at the beginning and end.
+##' 
 ##' @param x Vector of ordinates to compute the basis for.
+##' 
 ##' @return A matrix with one row for each ordinate and one column for each
 ##' knot.
 ##' 
@@ -533,8 +555,15 @@ flexsurv.splineinits.cox <- function(t=NULL, mf, mml, aux)
 ##' \code{formula}.  If not given, the variables should be in the working
 ##' environment.
 ##' @param weights Optional variable giving case weights.
+##' 
 ##' @param bhazard Optional variable giving expected hazards for relative
 ##' survival models.
+##'
+##' @param rtrunc Optional variable giving individual right-truncation times (see \code{\link{flexsurvreg}}).  Note that these models can suffer from weakly identifiable parameters and
+##' badly-behaved likelihood functions, and it is advised to compare
+##' convergence for different initial values by supplying different
+##' \code{inits} arguments to \code{flexsurvspline}.
+##' 
 ##' @param subset Vector of integers or logicals specifying the subset of the
 ##' observations to be used in the fit.
 ##' @param k Number of knots in the spline. The default \code{k=0} gives a
@@ -561,9 +590,13 @@ flexsurv.splineinits.cox <- function(t=NULL, mf, mml, aux)
 ##' If \code{"normal"}, \eqn{-\Phi^{-1}(S(t))}{-InvPhi(S(t))} is modelled as a
 ##' spline function, where \eqn{\Phi^{-1}()}{InvPhi()} is the inverse normal
 ##' distribution function \code{\link{qnorm}}.
+##'
 ##' @param timescale If \code{"log"} (the default) the log cumulative hazard
 ##' (or alternative) is modelled as a spline function of log time.  If
-##' \code{"identity"}, it is modelled as a spline function of time.
+##' \code{"identity"}, it is modelled as a spline function of time, however
+##' this model would not satisfy the desirable property that the cumulative hazard
+##' (or alternative) should approach 0 at time zero. 
+##' 
 ##' @param ...  Any other arguments to be passed to or through
 ##' \code{\link{flexsurvreg}}, for example, \code{anc}, \code{inits},
 ##' \code{fixedpars}, \code{weights}, \code{subset}, \code{na.action}, and any
@@ -639,14 +672,14 @@ flexsurv.splineinits.cox <- function(t=NULL, mf, mml, aux)
 ##' }
 ##' 
 ##' @export
-flexsurvspline <- function(formula, data, weights, bhazard, subset,
+flexsurvspline <- function(formula, data, weights, bhazard, rtrunc, subset,
                            k=0, knots=NULL, bknots=NULL, scale="hazard", timescale="log", ...){
     ## Get response matrix from the formula.  Only need this to obtain
     ## default knots.  Largely copied from flexsurvreg - ideally
     ## should be in separate function, but can't make scoping work.
 
     call <- match.call()
-    indx <- match(c("formula", "data", "weights", "bhazard", "subset", "na.action"), names(call), nomatch = 0)
+    indx <- match(c("formula", "data", "weights", "bhazard", "rtrunc", "subset", "na.action"), names(call), nomatch = 0)
     if (indx[1] == 0)
         stop("A \"formula\" argument is required")
     temp <- call[c(1, indx)]
@@ -728,16 +761,17 @@ flexsurvspline <- function(formula, data, weights, bhazard, subset,
     ## Try an alternative initial value routine if the default one gives zero likelihood
     fpold <- args$fixedpars
     args$fixedpars <- TRUE
+    args$weights <- temp$weights
+    args$bhazard <- temp$bhazard
+    args$rtrunc <- temp$rtrunc
+    args$subset <- temp$subset
     if (is.infinite(do.call("flexsurvreg", args)$loglik)){
         args$dist$inits <- flexsurv.splineinits.cox
     }
     args$fixedpars <- fpold
-    args$weights <- temp$weights
-    args$bhazard <- temp$bhazard
-    args$subset <- temp$subset
 
     ret <- do.call("flexsurvreg", args) # faff to make ... args work within functions
-    ret <- c(ret, list(k=length(knots) - 2, knots=knots, scale=scale))
+    ret <- c(ret, list(k=length(knots) - 2, knots=knots, scale=scale, timescale=timescale))
     ret$call <- call
     class(ret) <- "flexsurvreg"
     ret

@@ -4,8 +4,20 @@
 \alias{flexsurvspline}
 \title{Flexible survival regression using the Royston/Parmar spline model.}
 \usage{
-flexsurvspline(formula, data, weights, bhazard, subset, k = 0, knots = NULL,
-  bknots = NULL, scale = "hazard", timescale = "log", ...)
+flexsurvspline(
+  formula,
+  data,
+  weights,
+  bhazard,
+  rtrunc,
+  subset,
+  k = 0,
+  knots = NULL,
+  bknots = NULL,
+  scale = "hazard",
+  timescale = "log",
+  ...
+)
 }
 \arguments{
 \item{formula}{A formula expression in conventional R linear modelling
@@ -53,6 +65,11 @@ environment.}
 \item{bhazard}{Optional variable giving expected hazards for relative
 survival models.}
 
+\item{rtrunc}{Optional variable giving individual right-truncation times (see \code{\link{flexsurvreg}}).  Note that these models can suffer from weakly identifiable parameters and
+badly-behaved likelihood functions, and it is advised to compare
+convergence for different initial values by supplying different
+\code{inits} arguments to \code{flexsurvspline}.}
+
 \item{subset}{Vector of integers or logicals specifying the subset of the
 observations to be used in the fit.}
 
@@ -86,7 +103,9 @@ distribution function \code{\link{qnorm}}.}
 
 \item{timescale}{If \code{"log"} (the default) the log cumulative hazard
 (or alternative) is modelled as a spline function of log time.  If
-\code{"identity"}, it is modelled as a spline function of time.}
+\code{"identity"}, it is modelled as a spline function of time, however
+this model would not satisfy the desirable property that the cumulative hazard
+(or alternative) should approach 0 at time zero.}
 
 \item{...}{Any other arguments to be passed to or through
 \code{\link{flexsurvreg}}, for example, \code{anc}, \code{inits},

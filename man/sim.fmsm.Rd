@@ -4,8 +4,18 @@
 \alias{sim.fmsm}
 \title{Simulate paths through a fully parametric semi-Markov multi-state model}
 \usage{
-sim.fmsm(x, trans, t, newdata = NULL, start = 1, M = 10, tvar = "trans",
-  tcovs = NULL, debug = FALSE)
+sim.fmsm(
+  x,
+  trans = NULL,
+  t,
+  newdata = NULL,
+  start = 1,
+  M = 10,
+  tvar = "trans",
+  tcovs = NULL,
+  tidy = FALSE,
+  debug = FALSE
+)
 }
 \arguments{
 \item{x}{A model fitted with \code{\link{flexsurvreg}}. See
@@ -43,10 +53,14 @@ after each transition time, by adding the current time to the value
 supplied in \code{newdata}.  This assumes the covariate is measured in the
 same unit as time. \code{tcovs} is supplied as a character vector.}
 
+\item{tidy}{If \code{TRUE} then the simulated data are returned as a tidy data frame with one row per simulated transition.  See \code{\link{simfs_bytrans}} for a function to rearrange the data into this format if it was simulated in non-tidy format.}
+
 \item{debug}{Print intermediate outputs: for development use.}
 }
 \value{
-A list of two matrices named \code{st} and \code{t}.  The rows of
+If \code{tidy=TRUE}, a data frame with one row for each simulated transition, giving the individual ID \code{id}, start state \code{start}, end state \code{end}, transition label \code{trans}, time of the transition since the start of the process (\code{time}), and time since the previous transition (\code{delay}).
+
+If \code{tidy=FALSE}, a list of two matrices named \code{st} and \code{t}.  The rows of
 each matrix represent simulated individuals.  The columns of \code{t}
 contain the times when the individual changes state, to the corresponding
 states in \code{st}.
@@ -93,4 +107,5 @@ sim.fmsm(bexp, M=10, t=5, trans=tmat)
 \author{
 Christopher Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}.
 }
-\keyword{models,survival}
+\keyword{models}
+\keyword{survival}

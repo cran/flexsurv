@@ -1,5 +1,4 @@
 ### R code from vignette source 'flexsurv-examples.Rnw'
-### Encoding: UTF-8
 
 ###################################################
 ### code chunk number 1: flexsurv-examples.Rnw:39-59
@@ -118,5 +117,31 @@ progf <- cut(predf, quantile(predf, 0:3/3))
 table(progc, progf)
 
 }
+
+
+###################################################
+### code chunk number 6: flexsurv-examples.Rnw:229-233
+###################################################
+set.seed(1)
+nsim <- 10000
+onsetday <- runif(nsim, 0, 30) 
+deathday <- onsetday + rgamma(nsim, shape=1.5, rate=1/10)
+
+
+###################################################
+### code chunk number 7: flexsurv-examples.Rnw:243-247
+###################################################
+datt <- data.frame(delay = deathday - onsetday,
+                   event = rep(1, nsim),
+                   rtrunc = 40 - onsetday)
+datt <- datt[datt$delay < datt$rtrunc, ] 
+
+
+###################################################
+### code chunk number 8: flexsurv-examples.Rnw:257-260
+###################################################
+fitt <- flexsurvreg(Surv(delay, event) ~ 1, data=datt, rtrunc = rtrunc, dist="gamma")
+fitt
+summary(fitt, t=1, fn = mean_gamma)
 
 

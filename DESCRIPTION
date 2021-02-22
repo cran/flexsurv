@@ -1,39 +1,47 @@
 Package: flexsurv
 Type: Package
 Title: Flexible Parametric Survival and Multi-State Models
-Version: 1.1.1
-Date: 2019-03-18
+Version: 2.0
+Date: 2021-02-22
 Authors@R: c(person("Christopher", "Jackson",
          email="chris.jackson@mrc-bsu.cam.ac.uk",
          role=c("aut", "cre")),
 	   person("Paul", "Metcalfe",
          role=c("ctb")),
 	   person("Jordan", "Amdahl",
-         role=c("ctb"))
+         role=c("ctb")),
+         person("Matthew T.", "Warkentin",
+         role = c("ctb")),
+         person("Kevin", "Kunzmann",
+         role = c("ctb"))
 	   )
 Description: Flexible parametric models for time-to-event data,
     including the Royston-Parmar spline model, generalized gamma and
     generalized F distributions.  Any user-defined parametric
     distribution can be fitted, given at least an R function defining
     the probability density or hazard. There are also tools for
-    fitting and predicting from fully parametric multi-state models.
+    fitting and predicting from fully parametric multi-state models,
+    based on either cause-specific hazards or mixture models.
 License: GPL (>= 2)
 Depends: survival, R (>= 2.15.0)
-Imports: mstate (>= 0.2.10), muhaz, mvtnorm, deSolve, quadprog, Rcpp
-        (>= 0.11.5), tidyr, tibble
+Imports: assertthat, deSolve, generics, magrittr, mstate (>= 0.2.10),
+        Matrix, muhaz, mvtnorm, numDeriv, quadprog, Rcpp (>= 0.11.5),
+        rlang, rstpm2, purrr, tibble, tidyr, dplyr, tidyselect
 Encoding: UTF-8
-Suggests: eha,numDeriv,testthat,msm,knitr,TH.data,colorspace
+Suggests: colorspace, eha, ggplot2, knitr, msm, testthat, TH.data
 URL: https://github.com/chjackson/flexsurv-dev
 BugReports: https://github.com/chjackson/flexsurv-dev/issues
 VignetteBuilder: knitr
 LazyData: yes
 LinkingTo: Rcpp
-RoxygenNote: 6.0.1
+RoxygenNote: 7.1.1
 NeedsCompilation: yes
-Packaged: 2019-03-18 13:56:16 UTC; chris
+Packaged: 2021-02-22 19:14:12 UTC; chris
 Author: Christopher Jackson [aut, cre],
   Paul Metcalfe [ctb],
-  Jordan Amdahl [ctb]
+  Jordan Amdahl [ctb],
+  Matthew T. Warkentin [ctb],
+  Kevin Kunzmann [ctb]
 Maintainer: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Repository: CRAN
-Date/Publication: 2019-03-18 18:10:03 UTC
+Date/Publication: 2021-02-22 20:10:10 UTC

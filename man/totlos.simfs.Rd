@@ -5,9 +5,21 @@
 \title{Expected total length of stay in specific states, from a fully-parametric,
 semi-Markov multi-state model}
 \usage{
-totlos.simfs(x, trans, t = 1, start = 1, newdata = NULL, ci = FALSE,
-  tvar = "trans", tcovs = NULL, group = NULL, M = 1e+05, B = 1000,
-  cl = 0.95)
+totlos.simfs(
+  x,
+  trans,
+  t = 1,
+  start = 1,
+  newdata = NULL,
+  ci = FALSE,
+  tvar = "trans",
+  tcovs = NULL,
+  group = NULL,
+  M = 1e+05,
+  B = 1000,
+  cl = 0.95,
+  cores = NULL
+)
 }
 \arguments{
 \item{x}{A model fitted with \code{\link{flexsurvreg}}.  See
@@ -59,6 +71,8 @@ to calculate variances.  Decrease for greater speed at the expense of
 accuracy.}
 
 \item{cl}{Width of symmetric confidence intervals, relative to 1.}
+
+\item{cores}{Number of processor cores used when calculating confidence limits bu repeated simulation.  The default uses single-core processing.}
 }
 \value{
 The expected total time spent in each state (or group of states
@@ -105,4 +119,5 @@ totlos.simfs(bexp, t=1000, trans=tmat)
 \author{
 Christopher Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}.
 }
-\keyword{models,survival}
+\keyword{models}
+\keyword{survival}

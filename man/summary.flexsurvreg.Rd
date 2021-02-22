@@ -4,9 +4,23 @@
 \alias{summary.flexsurvreg}
 \title{Summaries of fitted flexible survival models}
 \usage{
-\method{summary}{flexsurvreg}(object, newdata = NULL, X = NULL,
-  type = "survival", fn = NULL, t = NULL, quantiles = 0.5, start = 0,
-  ci = TRUE, se = FALSE, B = 1000, cl = 0.95, tidy = FALSE, ...)
+\method{summary}{flexsurvreg}(
+  object,
+  newdata = NULL,
+  X = NULL,
+  type = "survival",
+  fn = NULL,
+  t = NULL,
+  quantiles = 0.5,
+  start = 0,
+  ci = TRUE,
+  se = FALSE,
+  B = 1000,
+  cl = 0.95,
+  tidy = FALSE,
+  na.action = na.pass,
+  ...
+)
 }
 \arguments{
 \item{object}{Output from \code{\link{flexsurvreg}} or
@@ -102,6 +116,8 @@ of CIs and SEs.}
 \item{tidy}{If \code{TRUE}, then the results are returned as a tidy data
 frame instead of a list.  This can help with using the \pkg{ggplot2}
 package to compare summaries for different covariate values.}
+
+\item{na.action}{Function determinining what should be done with missing values in \code{newdata}.  If \code{na.pass} (the default) then summaries of \code{NA} are produced for missing covariate values.  If \code{na.omit}, then missing values are dropped, the behaviour of \code{summary.flexsurvreg} before \code{flexsurv} version 1.2.}
 
 \item{...}{Further arguments passed to or from other methods.  Currently
 unused.}
