@@ -1,8 +1,8 @@
 Package: flexsurv
 Type: Package
 Title: Flexible Parametric Survival and Multi-State Models
-Version: 2.0
-Date: 2021-02-22
+Version: 2.1
+Date: 2021-09-13
 Authors@R: c(person("Christopher", "Jackson",
          email="chris.jackson@mrc-bsu.cam.ac.uk",
          role=c("aut", "cre")),
@@ -34,9 +34,9 @@ BugReports: https://github.com/chjackson/flexsurv-dev/issues
 VignetteBuilder: knitr
 LazyData: yes
 LinkingTo: Rcpp
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 NeedsCompilation: yes
-Packaged: 2021-02-22 19:14:12 UTC; chris
+Packaged: 2021-09-13 09:28:19 UTC; Chris
 Author: Christopher Jackson [aut, cre],
   Paul Metcalfe [ctb],
   Jordan Amdahl [ctb],
@@ -44,4 +44,4 @@ Author: Christopher Jackson [aut, cre],
   Kevin Kunzmann [ctb]
 Maintainer: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Repository: CRAN
-Date/Publication: 2021-02-22 20:10:10 UTC
+Date/Publication: 2021-09-13 15:50:02 UTC

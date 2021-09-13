@@ -362,7 +362,7 @@ state_names <- function(state, object){
 ##' fitted model, other than the transition number.  See
 ##' \code{\link{msfit.flexsurvreg}}.
 ##'
-##' @param condstates Instead of the unconditional probability of being in state \eqn{s} at time \eqn{t} given state \eqn{r} at time 0, return the probability conditional on being in a particular subset of states at time \eqn{t}.  This subset is specified in the \code{condstates} argument.
+##' @param condstates xInstead of the unconditional probability of being in state \eqn{s} at time \eqn{t} given state \eqn{r} at time 0, return the probability conditional on being in a particular subset of states at time \eqn{t}.  This subset is specified in the \code{condstates} argument, as a vector of character labels or integers. 
 ##'
 ##' This is used, for example, in competing risks situations, e.g. if the competing states are death or recovery from a disease, and we want to compute the probability a patient has died, given they have died or recovered.   If these are absorbing states, then as \eqn{t} increases, this converges to the case fatality ratio.  To compute this, set \eqn{t} to a very large number, \code{Inf} will not work. 
 ##' 
@@ -924,14 +924,18 @@ simfs_bytrans <- function(simfs){
         endi <- which(!is.na(trans[start[i],]))
         for (j in 1:(ncol(simfs$st)-1)){
             sub <- (simfs$st[,j] == start[i] & simfs$st[,j+1] %in% endi)
-            subj <- data.frame(end = simfs$st[sub,j+1],
-                               time = simfs$t[sub,j+1],
-                               delay = simfs$t[sub,j+1] - simfs$t[sub,j],
-                               id = which(sub))
-            subi <- rbind(subi, subj)
+            if (length(sub) > 0){
+                subj <- data.frame(end = simfs$st[sub,j+1],
+                                   time = simfs$t[sub,j+1],
+                                   delay = simfs$t[sub,j+1] - simfs$t[sub,j],
+                                   id = which(sub))
+                subi <- rbind(subi, subj)
+            }
         }
-        subi$start <- start[i]
-        suball <- rbind(suball, subi)
+        if (nrow(subi) > 0){
+            subi$start <- start[i]
+            suball <- rbind(suball, subi)
+        }
     }
     suball$start <- state_names(suball$start, simfs)
     suball$end <- state_names(suball$end, simfs)
@@ -1451,8 +1455,8 @@ simfinal_fmsm <- function(x, newdata=NULL, probs=c(0.025, 0.5, 0.975),
     if (B>0){
         bci <- bootci.fmsm(x, fn=valfn, newdata=newdata, 
                            t=t, M=M, B=B, cores=cores, probs=probs)
-        ests$lower <- bci["2.5%",]
-        ests$upper <- bci["97.5%",]
+        ests$lower <- bci[1,]
+        ests$upper <- bci[2,]
     }
     ests
 }
@@ -1517,8 +1521,8 @@ pfinal_fmsm <- function(x, newdata=NULL, fromstate, maxt=100000, B=0, cores=NULL
                            fromstate=fromstate, maxt=maxt, B=B, cores=cores)
         if (!is.null(newdata))
             bci <- bci[,-seq_along(unlist(newdata)),drop=FALSE]
-        ests$lower <- bci["2.5%",]
-        ests$upper <- bci["97.5%",]
+        ests$lower <- bci[1,]
+        ests$upper <- bci[2,]
     }
     ests
 }

@@ -106,9 +106,9 @@ NULL
 ##' distributions, as described in the \code{\link{GenGamma}} help page.
 ##' 
 ##' The generalized F distribution includes the log-logistic distribution (see
-##' \code{\link[eha]{Llogis}}) as a further special case:
+##' \code{\link[eha:Loglogistic]{eha::dllogis}}) as a further special case:
 ##' 
-##' \code{dgenf(x, mu=mu, sigma=sigma, Q=0, P=1) = \link[eha]{dllogis}(x,
+##' \code{dgenf(x, mu=mu, sigma=sigma, Q=0, P=1) = \link[eha:Loglogistic]{eha::dllogis}(x,
 ##' shape=sqrt(2)/sigma, scale=exp(mu))}
 ##' 
 ##' The range of hazard trajectories available under this distribution are
@@ -182,8 +182,10 @@ Hgenf <- function(x, mu=0, sigma=1, Q, P)
 ##' @rdname GenF
 hgenf <- function(x, mu=0, sigma=1, Q, P)
 {
-    dgenf(x=x, mu=mu, sigma=sigma, Q=Q, P=P) /
-        pgenf(q=x, mu=mu, sigma=sigma, Q=Q, P=P, lower.tail=FALSE)
+  logdens <- dgenf(x = x, mu = mu, sigma = sigma, Q = Q, P = P, log=TRUE)
+  logsurv <- pgenf(q = x, mu = mu, sigma = sigma, Q = Q, P = P, lower.tail = FALSE, log.p=TRUE)
+  loghaz <- logdens - logsurv
+  exp(loghaz)
 }
 
 ##' @export
@@ -275,8 +277,10 @@ Hgenf.orig <- function(x, mu=0, sigma=1, s1, s2)
 ##' @rdname GenF.orig
 hgenf.orig <- function(x, mu=0, sigma=1, s1, s2)
 {
-    dgenf.orig(x=x, mu=mu, sigma=sigma, s1=s1, s2=s2) /
-        pgenf.orig(q=x, mu=mu, sigma=sigma, s1=s1, s2=s2, lower.tail=FALSE)
+  logdens <- dgenf.orig(x = x, mu = mu, sigma = sigma, s1 = s1, s2 = s2, log=TRUE)
+  logsurv <- pgenf.orig(q = x, mu = mu, sigma = sigma, s1 = s1, s2 = s2, lower.tail = FALSE, log.p=TRUE)
+  loghaz <- logdens - logsurv
+  exp(loghaz)
 }
 
 ##' @export
