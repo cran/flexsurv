@@ -74,28 +74,46 @@ legend("topright", lwd=c(2,2), col=c("red","darkgray"), bty="n",
 
 
 ###################################################
-### code chunk number 3: flexsurv-examples.Rnw:150-157
+### code chunk number 3: flexsurv-examples.Rnw:132-146 (eval = FALSE)
 ###################################################
-mean.gengamma <- function(mu, sigma, Q, horizon=100, ...){
-    surv <- function(t, ...) {  1 - pgengamma(q=t, mu=mu, sigma=sigma, Q=Q, ...) }
-    integrate(surv, 0, horizon, ...)$value
-}
-summary(fs2, newdata=list(group="Good"), t=1, fn=mean.gengamma)
-summary(fs2, newdata=list(group="Medium"), t=1, fn=mean.gengamma)
-summary(fs2, newdata=list(group="Poor"), t=1, fn=mean.gengamma)
+## nd <- data.frame(group=c("Good","Medium"))
+## hr_aft <- hr_flexsurvreg(fs2, t=t, newdata=nd)
+## hr_ph <- hr_flexsurvreg(fs7, t=t, newdata=nd)
+## 
+## plot(t, hr_aft$lcl, type="l", ylim=c(0, 10), col="red", xlab="Years",
+##      ylab="Hazard ratio (Medium / Good)", lwd=1, lty=2)
+## lines(t, hr_aft$ucl, col="red", lwd=1, lty=2)
+## lines(t, hr_aft$est, col="red", lwd=2)
+## 
+## lines(t, hr_ph$lcl, col="darkgray", lwd=1, lty=2)
+## lines(t, hr_ph$ucl, col="darkgray", lwd=1, lty=2)
+## lines(t, hr_ph$est, col="darkgray", lwd=2)
+## legend("topright", lwd=c(2,2), col=c("red","darkgray"), bty="n",
+##        c("Generalized gamma: standard AFT", "Generalized gamma: proportional hazards"))
 
 
 ###################################################
-### code chunk number 4: flexsurv-examples.Rnw:160-164
+### code chunk number 4: flexsurv-examples.Rnw:168-170
 ###################################################
-median.gengamma <- function(mu, sigma, Q) { 
-    qgengamma(0.5, mu=mu, sigma=sigma, Q=Q) 
-}
-summary(fs2, newdata=list(group="Good"), t=1, fn=median.gengamma)
+summary(fs2, type="rmst", t=100, tidy=TRUE)
+summary(fs2, fn=rmst_gengamma, t=100, tidy=TRUE)
 
 
 ###################################################
-### code chunk number 5: flexsurv-examples.Rnw:189-209
+### code chunk number 5: flexsurv-examples.Rnw:174-176
+###################################################
+est <- fs2$res[,"est"]
+rmst_gengamma(t=100, mu=est[1], sigma=est[2], Q=est[3])
+
+
+###################################################
+### code chunk number 6: flexsurv-examples.Rnw:180-181
+###################################################
+summary(fs2, type="median")
+
+
+###################################################
+### code chunk number 7: flexsurv-examples.Rnw:211-231
 ###################################################
 if (require("TH.data")){
 
@@ -120,7 +138,7 @@ table(progc, progf)
 
 
 ###################################################
-### code chunk number 6: flexsurv-examples.Rnw:229-233
+### code chunk number 8: flexsurv-examples.Rnw:251-255
 ###################################################
 set.seed(1)
 nsim <- 10000
@@ -129,7 +147,7 @@ deathday <- onsetday + rgamma(nsim, shape=1.5, rate=1/10)
 
 
 ###################################################
-### code chunk number 7: flexsurv-examples.Rnw:243-247
+### code chunk number 9: flexsurv-examples.Rnw:265-269
 ###################################################
 datt <- data.frame(delay = deathday - onsetday,
                    event = rep(1, nsim),
@@ -138,7 +156,7 @@ datt <- datt[datt$delay < datt$rtrunc, ]
 
 
 ###################################################
-### code chunk number 8: flexsurv-examples.Rnw:257-260
+### code chunk number 10: flexsurv-examples.Rnw:279-282
 ###################################################
 fitt <- flexsurvreg(Surv(delay, event) ~ 1, data=datt, rtrunc = rtrunc, dist="gamma")
 fitt

@@ -10,7 +10,9 @@ normboot.flexsurvreg(
   newdata = NULL,
   X = NULL,
   transform = FALSE,
-  raw = FALSE
+  raw = FALSE,
+  tidy = FALSE,
+  rawsim = NULL
 )
 }
 \arguments{
@@ -34,6 +36,17 @@ The default \code{FALSE} returns parameters on the natural scale.}
 \item{raw}{Return samples of the baseline parameters and the covariate
 effects, rather than the default of adjusting the baseline parameters for
 covariates.}
+
+\item{tidy}{If \code{FALSE} (the default) then
+a list is returned.  If \code{TRUE} a data frame is returned, consisting
+of the list elements \code{rbind}ed together, with integer variables
+labelling the covariate number and simulation replicate number.}
+
+\item{rawsim}{allows input of raw samples from a previous run of 
+\code{normboot.flexsurvreg}. This is useful if running 
+\code{normboot.flexsurvreg} multiple time on the same dataset but with 
+counterfactual contrasts, e.g. treat =0 vs. treat  =1.
+Used in \code{standsurv.flexsurvreg}.}
 }
 \value{
 If \code{newdata} includes only one covariate combination, a matrix

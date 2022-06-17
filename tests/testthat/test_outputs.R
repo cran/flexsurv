@@ -64,6 +64,13 @@ test_that("newdata in summary.flexsurvreg: are missing values passed through or 
     expect_true(is.na(summ$est[1]))
     summ <- summary(fl3, newdata = luna, B = 0, t=100, tidy=TRUE, na.action=na.omit)
     expect_true(!is.na(summ$est[1]))
+    
+    fitw <- flexsurvreg(Surv(futime, fustat) ~ age, data = ovarian, dist = "weibull")
+    ovarian_miss <- ovarian[1:2,]
+    ovarian_miss$age[[1]] <- NA
+    summ <- summary(fitw, ovarian_miss, type = 'rmst', t = 500, tidy=TRUE)
+    expect_true(is.na(summ$est[1]))
+    expect_true(!is.na(summ$est[2]))
 })
 
 test_that("newdata in summary.flexsurvreg: missing covariates, factor not supplied as factor",{
@@ -92,11 +99,11 @@ test_that("summary.flexsurvreg tidy output",{
     st <- summary.flexsurvreg(Model.1, newdata=Unique.counts[,-3],t= c(4,5),tidy=TRUE, ci=FALSE)
     snt <- summary.flexsurvreg(Model.1, newdata=Unique.counts[,-3],t= c(4,5), ci=FALSE)
     expect_equal(st[st$time==5 & st$sex2==2 & st$agecat=="<65", "est"],
-                 snt[["sex2=2, agecat=<65"]][2,2])
+                 snt[["sex2=2,agecat=<65"]][2,2])
     res <- Model.1$res[,"est"]
     res.t <- Model.1$res.t[,"est"]
     expect_equal(pweibull(5, shape=res["shape"], scale=exp(res.t["scale"]+res.t["sex22"]), lower.tail=FALSE),
-                 snt[["sex2=2, agecat=<65"]][2,2])
+                 snt[["sex2=2,agecat=<65"]][2,2])
 
     ## no covariates
     Model.nc <- flexsurvreg(Surv(time, status) ~1 ,data=lung, dist="weibull")
@@ -107,4 +114,44 @@ test_that("summary.flexsurvreg tidy output",{
     st <- summary.flexsurvreg(Model.1, tidy=TRUE, ci=FALSE)
     expect_equal(st[1,"est"], 0.99604726078272, tol=1e-06)
     expect_equivalent(st[1,"agecat"], ">=65")
+})
+
+test_that("summary.flexsurvreg untidy output back compatibility",{
+  nd <- lung[c(1,1,2),]
+  s1 <- summary(fl3, newdata = nd, B=0, tidy=TRUE, t=c(5,10))
+  s2 <- summary(fl3, newdata = nd, B=0, tidy=FALSE, t=c(5,10))
+  expect_equal(s1[3,"est"], s2[[2]][1,"est"])  
+})
+
+test_that("hazard ratio",{
+    t <- c(100,200,300)
+    haz2 <- summary(fl3, type="hazard", t=t, newdata=list(age=60, sex="2"), ci=FALSE, tidy=TRUE)
+    haz1 <- summary(fl3, type="hazard", t=t, newdata=list(age=60, sex="1"), ci=FALSE, tidy=TRUE)
+    hr <- haz2$est / haz1$est   
+    
+    hr2 <- hr_flexsurvreg(fl3, newdata=as.data.frame(list(age=60, sex=c("1","2"))), t=t, ci=FALSE)
+    expect_equal(hr, hr2$est)
+
+    hr2 <- hr_flexsurvreg(fl3, newdata=as.data.frame(list(age=60, sex=c("1","2"))), 
+                          t=t, ci=TRUE, B=10)
+    expect_is(hr2$lcl, "numeric")
+    
+    ## a non-proportional hazards model
+    fl4 <- flexsurvspline(Surv(time, event = status) ~ sex + age, anc=list(gamma1=~sex), 
+                          data = lung, k = 2)
+    hr4 <- hr_flexsurvreg(fl4, newdata=as.data.frame(list(age=60, sex=c("1","2"))), 
+                          t=t, ci=TRUE, B=10)
+    expect_false(hr4$est[1] == hr4$est[2])
+
+    expect_error(hr_flexsurvreg(fl4, t=t), "`newdata` must be specified")
+
+    ## default newdata: factor
+    fitw <- flexsurvreg(Surv(futime, fustat) ~ factor(rx), data = ovarian, dist="weibull")
+    expect_equal(hr_flexsurvreg(fitw, t=t)$est,
+                 hr_flexsurvreg(fitw, t=t, newdata=list(rx=c("1","2")))$est)
+    ## default newdata: numeric
+    ovarian$rxbin <- ovarian$rx - 1 
+    fitw <- flexsurvreg(Surv(futime, fustat) ~ rxbin, data = ovarian, dist="weibull")
+    expect_equal(hr_flexsurvreg(fitw, t=t)$est,
+                 hr_flexsurvreg(fitw, t=t, newdata=list(rxbin=c(0,1)))$est)
 })

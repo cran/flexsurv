@@ -620,7 +620,9 @@ compress.model.matrices <- function(mml){
 ##'   \item{res}{Matrix of maximum likelihood estimates and confidence limits,
 ##'   with parameters on their natural scales.} \item{res.t}{Matrix of maximum
 ##'   likelihood estimates and confidence limits, with parameters all
-##'   transformed to the real line.  The \code{\link{coef}}, \code{\link{vcov}}
+##'   transformed to the real line (using a log transform for all built-in
+##'   models where this is necessary).  The
+##'   \code{\link{coef}}, \code{\link{vcov}}
 ##'   and \code{\link{confint}} methods for \code{flexsurvreg} objects work on
 ##'   this scale.} \item{coefficients}{The transformed maximum likelihood
 ##'   estimates, as in \code{res.t}. Calling \code{coef()} on a
@@ -967,6 +969,10 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, rtrunc, subse
                     loglik=-opt$value, logliki=attr(minusloglik,"indiv"),
                     cl=cl, opt=opt)
     }
+    covdata  <- list(covnames = attr(dat$m, "covnames"),
+                     isfac = sapply(dat$m[,attr(dat$m,"covnames.orig"),drop=FALSE], is.factor),
+                     terms = attr(dat$m, "terms"),
+                     xlev = .getXlevels(attr(dat$m, "terms"), dat$m))
     ret <- c(list(call=call, dlist=dlist, aux=aux,
                   ncovs=ncovs, ncoveffs=ncoveffs,
                   mx=mx, basepars=1:nbpars,
@@ -975,7 +981,8 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, rtrunc, subse
                   data = dat, datameans = colMeans(X),
                   N=nrow(dat$Y), events=sum(dat$Y[,"status"]==1), trisk=sum(dat$Y[,"time"]),
                   concat.formula=f2, all.formulae=forms, dfns=dfns),
-             ret)
+             ret,
+             list(covdata = covdata)) # temporary position so cyclomort doesn't break
     if (isTRUE(getOption("flexsurv.test.analytic.derivatives"))
         && (dfns$deriv) ) {
         if (is.logical(fixedpars) && fixedpars==TRUE) { optpars <- inits; fixedpars=FALSE }
@@ -988,8 +995,7 @@ flexsurvreg <- function(formula, anc=NULL, data, weights, bhazard, rtrunc, subse
 ##' @export
 print.flexsurvreg <- function(x, ...)
 {
-    covmeans <- colMeans(model.matrix(x))
-    covs <- names(covmeans)
+    covs <- names(x$datameans)
     covinds <- match(covs, rownames(x$res))
     cat("Call:\n")
     dput(x$call)
@@ -1002,7 +1008,7 @@ print.flexsurvreg <- function(x, ...)
             colnames(ecoefs) <- c("exp(est)", colnames(res)[2:3])
             means <- rep(NA,nrow(x$res))
             ecoefs[covinds,] <- exp(x$res[covinds,1:3,drop=FALSE])
-            means[covinds] <- covmeans
+            means[covinds] <- x$datameans
             res <- cbind(means, res, ecoefs)
             colnames(res)[1] <- "data mean"
         }
@@ -1023,11 +1029,9 @@ print.flexsurvreg <- function(x, ...)
 }
 
 form.model.matrix <- function(object, newdata, na.action=na.pass, forms=NULL){
-    mfo <- model.frame(object)
-
     ## If required covariate missing, give a slightly more informative error message than, e.g.
     ## "Error in eval(expr, envir, enclos) (from flexsurvreg.R#649) : object 'sex' not found"
-    covnames <- attr(mfo, "covnames")
+    covnames <- object$covdata$covnames
     missing.covs <- unique(covnames[!covnames %in% names(newdata)])
     if (length(missing.covs) > 0){
         missing.covs <- sprintf("\"%s\"", missing.covs)
@@ -1036,9 +1040,8 @@ form.model.matrix <- function(object, newdata, na.action=na.pass, forms=NULL){
     }
 
     ## as in predict.lm
-    tt <- attr(mfo, "terms")
-    Terms <- delete.response(tt)
-    mf <- model.frame(Terms, newdata, xlev = .getXlevels(tt, mfo), na.action=na.action)
+    Terms <- delete.response(object$covdata$terms)
+    mf <- model.frame(Terms, newdata, xlev = object$covdata$xlev, na.action=na.action)
     if (!is.null(cl <- attr(Terms, "dataClasses")))
         .checkMFClasses(cl, mf)
     if (is.null(forms))
@@ -1116,7 +1119,7 @@ model.matrix.flexsurvreg <- function(object, par=NULL, ...)
 logLik.flexsurvreg <- function(object, ...){
     val <- object$loglik
     attr(val, "df") <- object$npars
-    attr(val, "nobs") <- nrow(model.frame(object))
+    attr(val, "nobs") <- object$N
     class(val) <- "logLik"
     val
 }

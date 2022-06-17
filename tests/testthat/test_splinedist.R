@@ -17,12 +17,18 @@ test_that("Spline distribution functions",{
     p2 <- psurvspline(1, gamma = c(-meanlog/sdlog, 1/sdlog), scale="normal")
     expect_equal(p1, p2)
 
+    p1 <- pweibull(1, shape=a, scale=b)
+    p2 <- psurvspline(1, gamma=c(log(1 / b^a), a))
+    
     ## other way round 
     gamma <- c(0.1, 0.2)
     d1 <- dweibull(1, shape=gamma[2], scale= exp(-gamma[1]/gamma[2]))
     d2 <- dsurvspline(1, gamma=gamma)
     expect_equal(d1, d2)
-
+    
+    scale <- exp(-gamma[1]/gamma[2])
+    d1 <- dweibullPH(1, shape=gamma[2], scale= scale^{-gamma[2]})
+    
     d1 <- dllogis(1, shape=gamma[2], scale= exp(-gamma[1]/gamma[2]))
     d2 <- dsurvspline(1, gamma=gamma, scale="odds")
     expect_equal(d1, d2)
@@ -43,8 +49,6 @@ test_that("Spline distribution functions",{
     expect_equal(-log(1 - psurvspline(0.2,g,knots=k,scale="odds")), Hsurvspline(0.2,g,knots=k,scale="odds"))
     expect_equal(-log(1 - psurvspline(0.2,g,knots=k,scale="normal")), Hsurvspline(0.2,g,knots=k,scale="normal"))
     expect_equal(dsurvspline(c(-1,0,NA,NaN,Inf), g, knots=k), c(0,0,NA,NA,NaN))
-
-    qsurvspline(0.2,g,knots=k)
 
     expect_equal(psurvspline(qsurvspline(0.2,g,knots=k), g, knots=k), 0.2)
     expect_equal(qsurvspline(psurvspline(0.2,g,knots=k), g, knots=k), 0.2)
@@ -98,7 +102,28 @@ test_that("fixed-knot convenience wrappers",{
     gamma0 <- gamma["gamma0"]; gamma1 <- gamma["gamma1"]; gamma2 <- gamma["gamma2"]
     expect_equal(mean_survspline(gamma=gamma, knots=spl$knots, scale=spl$scale),
                  mean_survspline1(gamma0, gamma1, gamma2, knots=spl$knots, scale=spl$scale))
-    ## note mean_ functions can't be vectorised 
+
+    expect_equal(mean_survspline(gamma, knots=spl$knots),
+                 mean_survspline1(gamma[1], gamma[2], gamma[3], knots=spl$knots))
+    
+    expect_equal(mean_survspline(rbind(gamma,gamma), knots=spl$knots),
+                 mean_survspline1(c(gamma[1],gamma[1]), gamma[2], gamma[3], knots=spl$knots))
+    expect_equal(mean_survspline(gamma_mat, knots=spl$knots),
+                 mean_survspline1(c(gamma_mat[1,1], gamma_mat[2,1]), 
+                                  c(gamma_mat[1,2], gamma_mat[2,2]), 
+                                  c(gamma_mat[1,3], gamma_mat[2,3]), 
+                                  knots=spl$knots))
+    
+    expect_equal(c(
+        mean_survspline(gamma=gamma_mat[1,], knots=spl$knots, scale=spl$scale),
+        mean_survspline(gamma=gamma_mat[2,], knots=spl$knots, scale=spl$scale)),
+        mean_survspline(gamma=gamma_mat, knots=spl$knots, scale=spl$scale))
+    
+    expect_equal(mean_survspline(gamma=gamma_mat, knots=spl$knots, scale=spl$scale),
+                 rmst_generic(psurvspline, t=c(Inf,Inf), gamma =  gamma_mat, knots=spl$knots, 
+                              matargs = c("gamma","knots")))
+
+    expect_is(summary(spl, fn=mean_survspline1, t=1, ci=FALSE), "list")
     expect_is(summary(spl, fn=mean_survspline1, t=1, ci=FALSE), "list")
     
     expect_equal(psurvspline(1, gamma, knots=spl$knots, scale=spl$scale),
@@ -147,3 +172,4 @@ test_that("fixed-knot convenience wrappers",{
     expect_equal(r1, r2)
 
 })
+

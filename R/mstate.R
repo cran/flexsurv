@@ -10,21 +10,19 @@ is.flexsurvlist <- function(x){
 form.msm.newdata <- function(x, newdata=NULL, tvar="trans", trans){
     tr <- sort(unique(na.omit(as.vector(trans))))
     ntr <- length(tr)
-    mfo <- model.frame(x)
-    if (!(tvar %in% colnames(mfo))){
+    if (!(tvar %in% x$covdata$covnames)){
         if (missing(tvar))
             stop("\"tvar\" not supplied and variable \"", tvar, "\" not in model")
         else stop("\"variable \"", tvar, "\" not in model")
     }
-    trobs <- unique(mfo[,tvar])
-    if (!all(trobs %in% tr)) stop("\"tvar\" contains elements not in the transition indicator matrix \"trans\"")
     if(is.null(newdata)){
-        newdata <- data.frame(trans=trobs); names(newdata) <- tvar
+        newdata <- data.frame(trans=factor(tr, levels=x$covdata$xlev[[tvar]]))
+        names(newdata) <- tvar
     } else {
         newdata <- as.data.frame(newdata)
         if (nrow(newdata)==1) newdata <- newdata[rep(1,ntr),,drop=FALSE]
         else if (nrow(newdata) != ntr) stop(sprintf("length of variables in \"newdata\" must be either 1 or number of transitions, %d", ntr))
-        newdata[,tvar] <- trobs
+        newdata[,tvar] <- factor(tr, levels=x$covdata$xlev[[tvar]])
     }
     newdata
 }
@@ -105,7 +103,7 @@ form.msm.newdata <- function(x, newdata=NULL, tvar="trans", trans){
 ##' @references Liesbeth C. de Wreede, Marta Fiocco, Hein Putter (2011).
 ##' \pkg{mstate}: An R Package for the Analysis of Competing Risks and
 ##' Multi-State Models. \emph{Journal of Statistical Software}, 38(7), 1-30.
-##' \url{https://www.jstatsoft.org/v38/i07}
+##' \doi{10.18637/jss.v038.i07}
 ##' 
 ##' Mandel, M. (2013). "Simulation based confidence intervals for functions
 ##' with complicated derivatives." The American Statistician 67(2):76-81
@@ -757,10 +755,6 @@ form.basepars.tcovs <- function(x, transi, # index of allowed transition
 ##' no warning or error is currently given if the model is not of this type. An
 ##' equivalent for time-inhomogeneous Markov ("clock-forward") models has
 ##' currently not been implemented.
-##' 
-##' Note the random sampling method for \code{flexsurvspline} models is
-##' currently very inefficient, so that looping over the \code{M} individuals
-##' will be very slow.
 ##' 
 ##' @param x A model fitted with \code{\link{flexsurvreg}}. See
 ##' \code{\link{msfit.flexsurvreg}} for the required form of the model and the
