@@ -35,7 +35,8 @@
 #'
 #' * \code{"link"} for fitted values of the location parameter, analogous to
 #'   the linear predictor in generalized linear models (\code{type = "lp"} and
-#'   \code{type = "linear"} are acceptable synonyms)
+#'   \code{type = "linear"} are acceptable synonyms). This is on the natural
+#'   scale of the parameter, not the log scale. 
 #'
 #' @param times Vector of time horizons at which to compute fitted values.
 #'   Only applies when \code{type} is \code{"survival"}, \code{"cumhaz"},
@@ -54,6 +55,8 @@
 #' @param start Optional left-truncation time or times. The returned
 #'   survival, hazard, or cumulative hazard will be conditioned on survival up
 #'   to this time. `start` must be length 1 or the same length as `times`.
+#'   Predicted times returned with \code{type} \code{"rmst"} or \code{"quantile"}
+##'  will be times since time zero, not times since the \code{start} time. 
 #'
 #' @param conf.int Logical. Should confidence intervals be returned?
 #'   Default is \code{FALSE}.

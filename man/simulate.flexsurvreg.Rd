@@ -2,42 +2,64 @@
 % Please edit documentation in R/simulate_flexsurvreg.R
 \name{simulate.flexsurvreg}
 \alias{simulate.flexsurvreg}
-\title{Simulate datasets from a fitted flexsurvreg model}
+\title{Simulate censored time-to-event data from a fitted flexsurvreg model}
 \usage{
 \method{simulate}{flexsurvreg}(
   object,
   nsim = 1,
   seed = NULL,
+  newdata = NULL,
+  start = NULL,
   censtime = NULL,
-  vectorised = TRUE,
+  tidy = FALSE,
   ...
 )
 }
 \arguments{
-\item{object}{Object returned by flexsurvreg}
+\item{object}{Object returned by \code{\link{flexsurvreg}}.}
 
-\item{nsim}{Number of datasets to simulate}
+\item{nsim}{Number of simulations per row in \code{newdata}.}
 
 \item{seed}{Random number seed. This is returned with the result of this
-function as described in \code{\link{simulate}}.}
+function, as described in \code{\link{simulate}} for the \code{lm} method.}
 
-\item{censtime}{Right-censoring time, or vector of right-censoring times of
-the same size as the data used to fit the model.}
+\item{newdata}{Data frame defining alternative sets of covariate values to simulate with.
+If omitted, this defaults to the data originally used to fit the model.}
 
-\item{vectorised}{Set to \code{FALSE} if the fitted model uses distribution
-functions from a package other than \pkg{flexsurv} and those functions are
-not vectorised.  By default, this function assumes that they are
-vectorised. Incomprehensible warnings may be printed and the simulation is
-not guaranteed to work if this assumption is wrong.  Vectorising will 
-generally make the simulation much faster.}
+\item{start}{Delayed entry (left-truncation) time.  If omitted, no delayed entry is assumed.}
 
-\item{...}{Currently unused.}
+\item{censtime}{A right-censoring time, or vector of times matching the rows
+  of \code{newdata}.  If \code{NULL} (the default) then uncensored times to events
+are simulated.}
+
+\item{tidy}{If \code{TRUE} then a "tidy" or "long"-format data frame is
+  returned, with rows defined by combinations of covariates and simulation
+  replicates.  The simulation replicate is indicated in the column named \code{i}. 
+
+  If \code{FALSE}, then a data frame is returned with one row per set of
+  covariate values, and different columns for different simulation
+  replicates.  This is the traditional format for `simulate` methods in base
+  R.
+
+  In either case, the simulated time and indicator for whether the time is
+  an event time (rather than a time of right-censoring) are returned in
+  different columns.}
+
+\item{...}{Other arguments (not currently used).}
 }
 \value{
-A data frame with \code{nsim} pairs of columns named
-  \code{"sim_1","event_1"} and so on, containing the simulated event or
-  censoring times, and an indicator for whether the event was observed.
+A data frame, with format determined by whether \code{tidy} was specified.
 }
 \description{
-Simulate datasets from a fitted flexsurvreg model
+Simulate censored time-to-event data from a fitted flexsurvreg model
+}
+\examples{
+fit <- flexsurvreg(formula = Surv(futime, fustat) ~ rx, data = ovarian, dist="weibull")
+fit2 <- flexsurvspline(formula = Surv(futime, fustat) ~ rx, data = ovarian, k=3)
+nd = data.frame(rx=1:2)
+simulate(fit, seed=1002, newdata=nd)
+simulate(fit, seed=1002, newdata=nd, start=500)
+simulate(fit2, nsim=3, seed=1002, newdata=nd)
+simulate(fit2, nsim=3, seed=1002, newdata=nd, start=c(500,1000))
+
 }
