@@ -95,8 +95,8 @@ dbase.survspline <- function(q, gamma, knots, scale, offset=0, deriv=FALSE){
     if(!is.matrix(knots)) knots <- matrix(knots, nrow=1)
     lg <- nrow(gamma)
     nret <- max(length(q), lg)
-    q <- rep(q, length=nret)
-    offset <- rep(offset, length=nret)
+    q <- rep(q, length.out=nret)
+    offset <- rep(offset, length.out=nret)
 
     gamma <- matrix(rep(as.numeric(t(gamma)), length.out = ncol(gamma) * nret),
                     ncol = ncol(gamma), byrow = TRUE)
@@ -711,7 +711,7 @@ flexsurvspline <- function(formula, data, weights, bhazard, rtrunc, subset,
         if (is.null(k)) stop("either \"knots\" or \"k\" must be specified")
         if (!is.numeric(k)) stop("k must be numeric")
         if (!is.wholenumber(k) || (k<0)) stop("number of knots \"k\" must be a non-negative integer")
-        knots <- quantile(tsfn(dtimes,timescale), seq(0, 1, length=k+2)[-c(1,k+2)])
+        knots <- quantile(tsfn(dtimes,timescale), seq(0, 1, length.out=k+2)[-c(1,k+2)])
     }
     else {
         if (!is.numeric(knots)) stop("\"knots\" must be a numeric vector")
