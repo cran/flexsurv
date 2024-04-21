@@ -280,7 +280,8 @@ flexsurvmix <- function(formula, data, event, dists,
   for (k in 1:K){
     msg <- sprintf("anc[[%s]] must be a list of formulae", k)
     fk <- if (is.list(formula)) formula[[k]] else formula
-    ancm[[k]] <- anc_from_formula(fk, anc[[k]], dlists[[k]], msg, data)
+    ancm[[k]] <- anc_from_formula(fk, anc[[k]], dlists[[k]], msg, data,
+                                  loc_warn=FALSE)
   }
   locform <- forms <- vector(K, mode="list")
   for (k in 1:K) {
@@ -487,13 +488,13 @@ flexsurvmix <- function(formula, data, event, dists,
   if (isTRUE(fixedpars)) fixedpars <- seq_len(npars)
   if (is.logical(fixedpars) && (fixedpars==FALSE)) fixedpars <- NULL
   if (is.character(fixedpars)){
-    if (any(!fixedpars %in% res$terms)) {
+    if (!all(fixedpars %in% res$terms)) {
       bad_fixedpars <- fixedpars[! fixedpars %in% res$terms[-1]]
       stop(paste(bad_fixedpars,collapse=","), " not in model terms")
     }
     fixedpars <- match(fixedpars, as.character(res$terms[-1]))
   }
-  if (is.numeric(fixedpars) && any(!fixedpars %in% 1:npars)) 
+  if (is.numeric(fixedpars) && !all(fixedpars %in% 1:npars)) 
     stop(sprintf("`fixedpars` should all be in 1,...,%s",npars))
   optpars <- setdiff(seq_len(npars), fixedpars)
   fixed <- (length(optpars) == 0)
@@ -502,7 +503,7 @@ flexsurvmix <- function(formula, data, event, dists,
     optim.control$fnscale <- 10000
 
   method <- match.arg(method, c("direct","em"))
-  if (!any(is.na(event))) method <- "em" # likelihoods factorise, use EM code with one iteration
+  if (!anyNA(event)) method <- "em" # likelihoods factorise, use EM code with one iteration
   if (method=="direct"){
     if (length(optpars) > 0){
       if (is.null(optim.control$ndeps))
@@ -654,7 +655,7 @@ flexsurvmix <- function(formula, data, event, dists,
       theta <- thetanew
       covtheta <- covthetanew
       logliknew <- sum(ll)
-      if (!any(is.na(event))) 
+      if (!anyNA(event)) 
         converged <- TRUE
       else if (iter > 0)
         converged <-  (abs(logliknew / loglik - 1) <= em.control$reltol)
@@ -678,7 +679,7 @@ flexsurvmix <- function(formula, data, event, dists,
     loglik <- -as.vector(ll)
     logliki <- -attr(ll, "indiv")
     
-    if (!any(is.na(event))){
+    if (!anyNA(event)) {
       hess <- - Matrix::bdiag(hess_full_p, Matrix::bdiag(hess_full_t))
       cov <- .hess_to_cov(-hess, hess.control$tol.solve, hess.control$tol.evalues)
     } else {
@@ -698,6 +699,8 @@ flexsurvmix <- function(formula, data, event, dists,
   }
 
   ## Add standard errors to results data frame, given covariance matrix.
+  ## A previous version attempted to calculate a SE for the reference category
+  ## probability as follows, but didn't account for the logit transformation.
   ## var ( 1 - p1 - p2 - .. ) = var(p1) + var(p2) - cov(p1,p2) - ...
   res$fixed <- c(NA, rep(FALSE, npars))
   res$fixed[1 + fixedpars] <- TRUE
@@ -706,7 +709,7 @@ flexsurvmix <- function(formula, data, event, dists,
   if (!fixed){
       if (length(optp) > 0){
         covp <- cov[optp, optp, drop=FALSE]
-        res$se[1] <- if (K==1) NA else sqrt(sum(diag(covp)) - sum(covp[lower.tri(covp)]))
+        res$se[1] <- NA
       }
       res$se[1 + optpars] <- sqrt(diag(cov))
   } 
@@ -762,6 +765,7 @@ check.formula.flexsurvmix <- function(formula, dlist, data=NULL){
   }
 }
 
+#' @noRd
 logLik.flexsurvmix <- function(object, ...){
   val <- object$loglik
   attributes(val) <- NULL
@@ -861,6 +865,17 @@ inv.transform.res <- function(x, dlists) {
   c(probs, pcov, unlist(est))
 }
 
+##' Model frame from a flexsurvmix object
+##'
+##' Returns a list of data frames, with each component containing the
+##' data that were used for the model fit for that mixture component.
+##'
+##' @param formula Fitted model object from \code{\link{flexsurvmix}}.
+##'
+##' @param ... Further arguments (currently unused).
+##'
+##' @return A list of data frames
+##' 
 ##' @export
 model.frame.flexsurvmix <- function(formula, ...)
 {

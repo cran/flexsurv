@@ -1,11 +1,11 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   fig.dim = c(8, 6),
   collapse = TRUE,
   comment = "#>"
 )
 
-## ---- message = FALSE, warning = FALSE----------------------------------------
+## ----message = FALSE, warning = FALSE-----------------------------------------
 library(flexsurv)
 library(flexsurvcure)
 library(ggplot2)

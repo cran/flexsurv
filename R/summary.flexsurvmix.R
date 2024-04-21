@@ -522,13 +522,22 @@ ajfit_flexsurvmix <- function(x, maxt=NULL, startname="Start", B=NULL){
       class(newdata[[i]]) <- class(dat[[i]]) # preserve e.g. ordered factor status
   } else newdata <- NULL    
   statenames <- c(startname,x$evnames)
-  ajlong <- ajfit(x) %>% 
-    tidyr::pivot_longer(cols = c(tidyselect::num_range("pstate.",1:nstates), 
-                          tidyselect::num_range("lower.",1:nstates),
-                          tidyselect::num_range("upper.",1:nstates)),
-                 names_to=c("summary","state"),
-                 names_sep="\\.", values_to="prob") %>%
-    tidyr::pivot_wider(names_from="summary", values_from="prob")
+
+  
+  ajlong <- ajfit(x)
+  ## survival package changed 04/2024 to include state names in survfit Aalen-Johansen output
+  if (any(names(ajlong)=="pstate..s0."))      # handle both old and new versions 
+      ajlong <- ajlong %>%          
+      dplyr::rename("pstate._s0_"="pstate..s0.", ## rename name chosen by survfit()
+                    "lower._s0_"="lower..s0.",   ## since double dot confuses names_sep
+                    "upper._s0_"="upper..s0.")
+  ajlong <- ajlong %>%
+      tidyr::pivot_longer(cols = c(tidyselect::starts_with("pstate."), 
+                                   tidyselect::starts_with("lower."),
+                                   tidyselect::starts_with("upper.")),
+                          names_to=c("summary","state"),
+                          names_sep="\\.", values_to="prob") %>%
+      tidyr::pivot_wider(names_from="summary", values_from="prob")
   ajlong$state <- as.character(factor(ajlong$state, labels=statenames))
   names(ajlong)[names(ajlong)=="pstate"] <- "val"
   ajlong$model <- "Aalen-Johansen"

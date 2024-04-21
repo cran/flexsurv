@@ -82,13 +82,20 @@ Default is \code{FALSE}.}
 \item{...}{Not currently used.}
 }
 \value{
-A \code{\link{tibble}} with same number of rows as \code{newdata}
-and in the same order. If multiple predictions are requested, a
-\code{\link{tibble}} containing a single list-column of data frames.
+A \code{\link{tibble}} with same number of rows as
+\code{newdata} and in the same order. If multiple predictions are
+requested, a \code{\link{tibble}} containing a single list-column
+of data frames.
 
 For the list-column of data frames - the dimensions of each data frame
 will be identical. Rows are added for each value of \code{times} or
 \code{p} requested.
+
+This function is a wrapper around \code{\link{summary.flexsurvreg}},
+designed to help \pkg{flexsurv} to integrate with the "tidymodels"
+ecosystem, in particular the \pkg{censored} package.
+\code{\link{summary.flexsurvreg}} returns the same results but in a more
+conventional format.
 }
 \description{
 Predict outcomes from flexible survival models at the covariate values
@@ -115,4 +122,7 @@ tidyr::unnest(pr, .pred)
 \seealso{
 \code{\link{summary.flexsurvreg}},
 \code{\link{residuals.flexsurvreg}}
+}
+\author{
+Matthew T. Warkentin (\url{https://github.com/mattwarkentin})
 }

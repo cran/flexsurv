@@ -3,7 +3,6 @@
 \docType{package}
 \name{flexsurv-package}
 \alias{flexsurv-package}
-\alias{_PACKAGE}
 \alias{flexsurv}
 \title{flexsurv: Flexible parametric survival and multi-state models}
 \description{
@@ -79,8 +78,9 @@ gamma distribution.  Statistics in Medicine 26:4252-4374
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/chjackson/flexsurv-dev}
-  \item Report bugs at \url{https://github.com/chjackson/flexsurv-dev/issues}
+  \item \url{https://github.com/chjackson/flexsurv}
+  \item \url{http://chjackson.github.io/flexsurv/}
+  \item Report bugs at \url{https://github.com/chjackson/flexsurv/issues}
 }
 
 }
