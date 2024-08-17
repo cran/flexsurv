@@ -1,4 +1,20 @@
-# Version 2.3 (2024-04-19)
+# Version 2.3.2 (2024-08-16)
+
+* Vignette source included to satisfy CRAN checks.
+
+* Fix of prediction with `spline="splines2ns"`.
+
+
+# Version 2.3.1 (2024-07-14)
+
+* Fix for simulating from semi-Markov models with `tcovs` option,
+  which was not completing for some model configurations.
+
+* Fix for `simulate.flexsurvreg()` with vector `start` argument
+  (#192).
+  
+
+# Version 2.3 (2024-04-21)
 
 * Analytic Hessian calculation for models where this is possible, that
   is, Weibull, Gompertz, exponential, and spline models in hazard and
@@ -8,6 +24,9 @@
 
 * Vignette now firmly warns against using flexsurv with time-dependent
   covariates (#176).
+
+* New argument `spline="splines2ns"` can now be specified to use an
+  orthogonal spline basis in `flexsurvspline()`.
 
 * Weighted likelihood for relative survival models now implemented
   consistently with other models, as a weighted sum of individual
@@ -49,7 +68,7 @@ Thank you to all who have contributed code for this version: @mikesweeting @step
 # Version 2.2.1 (2022-12-22)
 
 * New `simulate.flexsurvreg` method to simulate data from a fitted
-  flexsurvreg or flexsurvspline model.  Thanks to Mark Clements for
+  `flexsurvreg()` or `flexsurvspline()` model.  Thanks to Mark Clements for
   help with this.
 
 * Fix of bug for `summary()` method with type = `"quantile"` or `"median"`
@@ -66,7 +85,7 @@ Thank you to all who have contributed code for this version: @mikesweeting @step
   See the new vignette about it.
 
 * New function `hr_flexsurvreg` to compute the hazard ratio from a
-  fitted flexsurvreg or flexsurvspline model as a function of time,
+  fitted `flexsurvreg()` or `flexsurvspline()` model as a function of time,
   with confidence intervals.
 
 * `summary.flexsurvreg` has been rewritten to make it cleaner and
